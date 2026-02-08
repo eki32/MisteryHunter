@@ -67,7 +67,7 @@ export class App {
       this.totalPoints.set(this.userProgress.puntos);
       console.log('📊 Progreso cargado:', this.userProgress);
 
-      this.initMap(this.L);
+      await this.initMap(this.L);
       this.loadMysteries(this.L);
       
       // ✅ Cargar ranking inicial
@@ -205,24 +205,27 @@ export class App {
     }
   }
 
-initMap(L: any) {
-  // 1. Intentamos obtener la ubicación real del usuario
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        this.finishMapSetup(L, latitude, longitude);
-      },
-      () => {
-        // Si falla o deniega, usamos Bilbao por defecto
-        console.warn("Ubicación denegada.");
-        this.finishMapSetup(L, 43.2630, -2.9350);
-      },
-      { enableHighAccuracy: true }
-    );
-  } else {
-    this.finishMapSetup(L, 43.2630, -2.9350);
-  }
+async initMap(L: any): Promise<void> {
+  return new Promise((resolve) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          this.finishMapSetup(L, latitude, longitude);
+          resolve(); // ✅ Resuelve cuando el mapa está listo
+        },
+        () => {
+          console.warn("Ubicación denegada.");
+          this.finishMapSetup(L, 43.2630, -2.9350);
+          resolve(); // ✅ Resuelve aunque falle la geolocalización
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      this.finishMapSetup(L, 43.2630, -2.9350);
+      resolve(); // ✅ Resuelve si no hay geolocalización
+    }
+  });
 }
 
 // He extraído el resto de tu configuración para que no se repita código
@@ -334,6 +337,13 @@ private finishMapSetup(L: any, lat: number, lng: number) {
   }
 
   loadMysteries(L: any) {
+
+      // ✅ Validación de seguridad
+  if (!this.map) {
+    console.error('❌ El mapa no está inicializado');
+    return;
+  }
+  
     const lockedIcon = L.icon({
       iconUrl: 'assets/locked.png',
       iconSize: [32, 32],

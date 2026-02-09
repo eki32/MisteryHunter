@@ -1,4 +1,4 @@
-package com.yourcompany.mysteryhunter;
+package com.example.app;
 
 import com.getcapacitor.BridgeActivity;
 

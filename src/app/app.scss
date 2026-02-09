@@ -1060,102 +1060,86 @@
 }
 
 /* ============================================
-   FIX ESPECÍFICO HONOR MAGIC V5 Y SIMILARES
+   FIX DEFINITIVO HONOR MAGIC V5 (DPI ALTO)
    ============================================ */
 
-/* Honor Magic V5 cerrado (340-360px ancho) - Ajustado para DPI alto */
-@media (min-width: 340px) and (max-width: 360px) {
+/* Detectamos el Honor por su combinación de ancho y densidad de píxeles */
+@media screen and (max-width: 400px) and (-webkit-min-device-pixel-ratio: 2.5) {
+  
+  .welcome-overlay {
+    padding: 15px !important;
+  }
+
   .welcome-card {
-    padding: 1.2vh 3vw !important;
-    width: 96% !important;
-    max-width: 340px !important;
+    padding: 20px !important;
+    width: 95% !important;
+    max-width: 380px !important;
+    /* Evitamos que la tarjeta se encoja demasiado */
+    min-height: 450px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 
     .mystery-logo {
-      width: 11vw !important;
-      max-width: 40px !important;
-      margin: 0 auto 0.5vh !important;
+      width: 65px !important; /* Tamaño fijo, no basado en VW */
+      margin: 0 auto 10px !important;
     }
 
     .mystery-title {
-      font-size: 4vw !important;
-      margin-bottom: 0.4vh !important;
-      line-height: 1.1;
+      font-size: 24px !important; /* Tamaño legible fijo */
+      margin-bottom: 10px !important;
+      line-height: 1.2 !important;
     }
 
     .description-box {
-      font-size: 2.8vw !important;
-      margin: 0.6vh 0 !important;
-      line-height: 1.15;
+      font-size: 14px !important; /* Texto base claro */
+      margin: 10px 0 !important;
+      line-height: 1.4 !important;
 
       p {
-        margin-bottom: 0.3vh !important;
+        margin-bottom: 8px !important;
       }
       
       ul {
-        padding-left: 3vw;
+        padding-left: 20px !important;
         li {
-          margin-bottom: 0.2vh !important;
+          margin-bottom: 5px !important;
         }
       }
     }
 
     .name-input, .auth-input {
-      padding: 0.8vh 2vw !important;
-      margin: 0.6vh 0 !important;
-      font-size: 2.9vw !important;
+      padding: 12px !important;
+      margin: 8px 0 !important;
+      font-size: 15px !important;
+      height: 45px !important; /* Altura táctil cómoda */
     }
 
     .start-button {
-      padding: 0.8vh 4vw !important;
-      font-size: 2.9vw !important;
-      margin-top: 0.6vh !important;
+      padding: 12px 30px !important;
+      font-size: 15px !important;
+      margin-top: 15px !important;
+      width: auto !important;
+      align-self: center;
     }
 
     .toggle-mode-btn {
-      margin-top: 0.5vh !important;
-      padding: 0.7vh 2vw !important;
-      font-size: 2.6vw !important;
+      margin-top: 10px !important;
+      padding: 8px !important;
+      font-size: 13px !important;
     }
 
     .error-message {
-      font-size: 2.7vw !important;
-      padding: 0.8vh 2vw !important;
+      font-size: 13px !important;
+      padding: 10px !important;
     }
   }
 }
 
-/* Dispositivos con DPI muy alto (como plegables en modo externo) */
-@media (max-width: 360px) and (min-resolution: 400dpi) {
-  .welcome-card {
-    padding: 1vh 2.5vw !important;
-    
-    .mystery-logo {
-      width: 10vw !important;
-      max-width: 36px !important;
+/* Si el teléfono está en horizontal (Doblado o abierto de lado) */
+@media screen and (max-height: 500px) {
+    .welcome-card {
+        max-height: 95vh !important;
+        overflow-y: auto !important;
     }
-
-    .mystery-title {
-      font-size: 3.5vw !important;
-    }
-
-    .description-box {
-      font-size: 2.5vw !important;
-      line-height: 1.12;
-    }
-
-    .name-input, .auth-input {
-      padding: 0.7vh 1.8vw !important;
-      font-size: 2.6vw !important;
-    }
-
-    .start-button {
-      padding: 0.7vh 3.5vw !important;
-      font-size: 2.6vw !important;
-    }
-
-    .toggle-mode-btn {
-      font-size: 2.3vw !important;
-      padding: 0.6vh 1.8vw !important;
-    }
-  }
 }

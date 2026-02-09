@@ -27,13 +27,15 @@ export class App {
   private mysteryService = inject(MysteryService);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
+  private lastAccuracy: number = 0;
 
   userId: string = '';
   playerName = signal('');
 
   totalPoints = signal(0);
   selectedMystery = signal<any>(null);
-  private awardedMysteries: Set<string> = new Set();
+  private notifiedMysteries: Set<string> = new Set();
+  //private awardedMysteries: Set<string> = new Set();
 
   showSuccessModal = signal(false);
   solvedMysteryTitle = signal('');
@@ -66,9 +68,9 @@ export class App {
   private maxLocationAttempts = 3;
 
   // ✅ NUEVO: Variables para carga progresiva
-  private visibleMysteries: Set<string> = new Set();
+  // private visibleMysteries: Set<string> = new Set();
   private loadedMysteries: Set<string> = new Set();
-  private INITIAL_LOAD_DISTANCE = 5000; // 5km inicial
+  // private INITIAL_LOAD_DISTANCE = 5000; // 5km inicial
   private LOAD_MORE_DISTANCE = 10000; // 10km para cargar más
   private BATCH_SIZE = 5; // Cargar de 5 en 5
   private currentUserLocation: any = null;
@@ -90,7 +92,7 @@ export class App {
 
       const savedUserId = localStorage.getItem('mysteryHunterUserId');
       const savedPlayerName = localStorage.getItem('mysteryHunterPlayerName');
-      
+
       if (savedUserId && savedPlayerName) {
         this.userId = savedUserId;
         this.playerName.set(savedPlayerName);
@@ -116,22 +118,26 @@ export class App {
     this.showUserMenu.update((v) => !v);
   }
 
-goToCurrentLocation() {
+  goToCurrentLocation() {
     if (this.currentUserLocation && this.map) {
       // Usamos la ubicación que el mapa ya está rastreando en tiempo real
       this.map.setView(this.currentUserLocation, 16, {
         animate: true,
-        duration: 1
+        duration: 1,
       });
     } else if (navigator.geolocation) {
       // Fallback por si acaso el rastreo aún no ha empezado
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        const newPos = this.L.latLng(latitude, longitude);
-        this.map.setView(newPos, 16);
-      }, (error) => {
-        console.error('Error al obtener ubicación:', error);
-      }, { enableHighAccuracy: true });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newPos = this.L.latLng(latitude, longitude);
+          this.map.setView(newPos, 16);
+        },
+        (error) => {
+          console.error('Error al obtener ubicación:', error);
+        },
+        { enableHighAccuracy: true },
+      );
     }
   }
 
@@ -139,13 +145,13 @@ goToCurrentLocation() {
     if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
       localStorage.removeItem('mysteryHunterUserId');
       localStorage.removeItem('mysteryHunterPlayerName');
-      
+
       this.userId = '';
       this.playerName.set('');
       this.totalPoints.set(0);
       this.userProgress = { puntos: 0, unlockedMysteries: [] };
       this.showRanking.set(false);
-      
+
       this.markers.forEach((marker) => {
         if (this.L) {
           const lockedIcon = this.L.icon({
@@ -161,13 +167,13 @@ goToCurrentLocation() {
           </div>`);
         }
       });
-      
+
       this.misteriosList.forEach((m) => {
         m.desbloqueado = false;
       });
-      
+
       this.showWelcome.set(true);
-      
+
       console.log('👋 Sesión cerrada');
     }
   }
@@ -202,7 +208,10 @@ goToCurrentLocation() {
 
         console.log('✅ Login exitoso:', trimmedName);
         this.showWelcome.set(false);
-        
+        if ('Notification' in window) {
+          Notification.requestPermission();
+        }
+
         if (this.L) {
           this.loadMysteries(this.L);
         }
@@ -394,10 +403,10 @@ goToCurrentLocation() {
             this.finishMapSetup(L, 43.263, -2.935);
             resolve();
           },
-          { 
+          {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 0
+            maximumAge: 0,
           },
         );
       } else {
@@ -410,7 +419,7 @@ goToCurrentLocation() {
 
   private finishMapSetup(L: any, lat: number, lng: number) {
     console.log('🗺️ Configurando mapa en:', lat, lng);
-    
+
     this.map = L.map('map', {
       center: [lat, lng],
       zoom: 14,
@@ -454,15 +463,22 @@ goToCurrentLocation() {
     });
 
     this.map.on('locationfound', (e: any) => {
-      console.log('📍 Ubicación actualizada:', e.latlng.lat, e.latlng.lng, 'Precisión:', e.accuracy + 'm');
-      
+      console.log(
+        '📍 Ubicación actualizada:',
+        e.latlng.lat,
+        e.latlng.lng,
+        'Precisión:',
+        e.accuracy + 'm',
+      );
+
       if (this.playerMarker) {
         this.playerMarker.setLatLng(e.latlng);
       }
-      
+
       this.currentUserLocation = e.latlng;
+      this.lastAccuracy = e.accuracy;
       this.updateMysteriesDistance(e.latlng);
-      
+
       // ✅ NUEVO: Cargar más misterios cuando el usuario se mueve
       this.loadNearbyMysteries(e.latlng);
     });
@@ -489,27 +505,30 @@ goToCurrentLocation() {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         console.log('📍 Ubicación actualizada:', latitude, longitude, 'Precisión:', accuracy + 'm');
-        
+
         this.locationAttempts = 0;
-        
+
         if (this.playerMarker && this.L) {
           const newPos = this.L.latLng(latitude, longitude);
           this.playerMarker.setLatLng(newPos);
           this.currentUserLocation = newPos;
           this.updateMysteriesDistance(newPos);
-          
+
           // ✅ NUEVO: Cargar misterios cercanos
           this.loadNearbyMysteries(newPos);
         }
       },
       (error) => {
         this.locationAttempts++;
-        console.error(`❌ Error al rastrear ubicación (intento ${this.locationAttempts}):`, error.message);
-        
+        console.error(
+          `❌ Error al rastrear ubicación (intento ${this.locationAttempts}):`,
+          error.message,
+        );
+
         if (this.locationAttempts >= this.maxLocationAttempts) {
           console.warn('⚠️ Reiniciando rastreo...');
           this.stopLocationTracking();
-          
+
           setTimeout(() => {
             this.locationAttempts = 0;
             this.startLocationTracking();
@@ -519,8 +538,8 @@ goToCurrentLocation() {
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 5000
-      }
+        maximumAge: 5000,
+      },
     );
 
     console.log('✅ Rastreo iniciado');
@@ -550,24 +569,19 @@ goToCurrentLocation() {
 
     // Encontrar misterios no cargados que estén cerca
     const mysteriesToLoad = this.misteriosList
-      .filter(m => !this.loadedMysteries.has(m.id))
-      .map(m => ({
+      .filter((m) => !this.loadedMysteries.has(m.id))
+      .map((m) => ({
         ...m,
-        distance: this.calculateDistance(
-          userLocation.lat,
-          userLocation.lng,
-          m.latitud,
-          m.longitud
-        )
+        distance: this.calculateDistance(userLocation.lat, userLocation.lng, m.latitud, m.longitud),
       }))
-      .filter(m => m.distance < this.LOAD_MORE_DISTANCE)
+      .filter((m) => m.distance < this.LOAD_MORE_DISTANCE)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, this.BATCH_SIZE);
 
     if (mysteriesToLoad.length > 0) {
       console.log(`🎯 Cargando ${mysteriesToLoad.length} misterios cercanos...`);
-      
-      mysteriesToLoad.forEach(m => {
+
+      mysteriesToLoad.forEach((m) => {
         this.addMysteryMarker(m);
         this.loadedMysteries.add(m.id);
       });
@@ -581,10 +595,10 @@ goToCurrentLocation() {
     const bounds = this.map.getBounds();
     let loadedCount = 0;
 
-    this.misteriosList.forEach(m => {
+    this.misteriosList.forEach((m) => {
       if (!this.loadedMysteries.has(m.id)) {
         const mysteryPos = this.L.latLng(m.latitud, m.longitud);
-        
+
         if (bounds.contains(mysteryPos)) {
           this.addMysteryMarker(m);
           this.loadedMysteries.add(m.id);
@@ -659,8 +673,8 @@ goToCurrentLocation() {
     });
 
     // ✅ OPTIMIZADO: Solo actualizar misterios cargados
-    this.loadedMysteries.forEach(mysteryId => {
-      const m = this.misteriosList.find(mystery => mystery.id === mysteryId);
+    this.loadedMysteries.forEach((mysteryId) => {
+      const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
       if (!m || m.desbloqueado) return;
 
       const marker = this.markers.get(m.id);
@@ -672,7 +686,30 @@ goToCurrentLocation() {
 
       marker.setIcon(lockedIcon);
 
+      // ✅ VALIDACIÓN ANTI-FALSIFICACIÓN
+      // Si la distancia es menor al radio, pero la precisión es sospechosa (ej. 0 o > 100)
+      // las apps de Fake GPS suelen dar precisión 0 o valores fijos muy altos.
+      const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
+
       if (distance < unlockRadius) {
+        // ✅ NUEVO: Alerta sensorial y notificación (Solo la primera vez que entra al radio)
+        if (!this.notifiedMysteries.has(m.id)) {
+          // Vibración: Patrón de atención corto
+          if (navigator.vibrate) {
+            navigator.vibrate([300, 100, 300]);
+          }
+
+          // Notificación de sistema
+          if (Notification.permission === 'granted') {
+            new Notification('📍 Misterio Detectado', {
+              body: `¡Estás sobre ${m.titulo}! Abre el mapa para resolver el acertijo.`,
+              icon: 'assets/logoMistery.png',
+            });
+          }
+
+          this.notifiedMysteries.add(m.id);
+        }
+
         const popupContent = `
           <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
             <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
@@ -686,7 +723,19 @@ goToCurrentLocation() {
             </button>
           </div>`;
         marker.bindPopup(popupContent);
+      } else if (distance < unlockRadius && !isLocationReliable) {
+        // Si está cerca pero el GPS es sospechoso, mostramos un aviso en lugar del acertijo
+        marker.bindPopup(`
+          <div style="text-align: center; padding: 10px;">
+            <b>⚠️ Señal inestable</b><br>
+            <span style="font-size: 11px;">Mévete un poco para mejorar la precisión del GPS y desbloquear el misterio.</span>
+          </div>`);
       } else {
+        // Si el usuario se aleja, permitimos que pueda volver a ser notificado si entra de nuevo
+        if (distance > unlockRadius + 10) {
+          this.notifiedMysteries.delete(m.id);
+        }
+
         marker.bindPopup(`
           <div style="text-align: center; padding: 10px;">
             <b>🔒 Bloqueado</b><br>
@@ -728,23 +777,25 @@ goToCurrentLocation() {
       // ✅ OPTIMIZADO: Cargar solo misterios iniciales (cercanos o desbloqueados)
       if (this.currentUserLocation) {
         // Cargar misterios desbloqueados primero
-        const unlockedMysteries = this.misteriosList.filter(m => m.desbloqueado);
-        unlockedMysteries.forEach(m => {
+        const unlockedMysteries = this.misteriosList.filter((m) => m.desbloqueado);
+        unlockedMysteries.forEach((m) => {
           this.addMysteryMarker(m);
           this.loadedMysteries.add(m.id);
         });
 
         // Cargar misterios cercanos (dentro de 5km inicial)
         this.loadNearbyMysteries(this.currentUserLocation);
-        
-        console.log(`✅ Carga inicial: ${unlockedMysteries.length} desbloqueados + misterios cercanos`);
+
+        console.log(
+          `✅ Carga inicial: ${unlockedMysteries.length} desbloqueados + misterios cercanos`,
+        );
       } else {
         // Si no hay ubicación, cargar solo los primeros 10
-        this.misteriosList.slice(0, 10).forEach(m => {
+        this.misteriosList.slice(0, 10).forEach((m) => {
           this.addMysteryMarker(m);
           this.loadedMysteries.add(m.id);
         });
-        
+
         console.log('✅ Carga inicial: primeros 10 misterios (sin ubicación)');
       }
 

@@ -531,11 +531,6 @@
    ANIMACIONES DE MARCADORES - OPTIMIZADAS
    ============================================ */
 
-/* ✅ Marcador base bloqueado (sin animación) */
-.locked-marker-base {
-  /* Sin animación, completamente estático */
-}
-
 /* ✅ Animación SUAVE cuando te acercas */
 .unlockable-marker-gentle {
   animation: pulse-gentle 2s ease-in-out infinite;

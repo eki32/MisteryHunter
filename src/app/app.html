@@ -1,3 +1,4 @@
+<!-- PANTALLA DE LOGIN/REGISTRO -->
 @if (showWelcome()) {
   <div class="welcome-overlay">
     <div class="welcome-card">
@@ -7,48 +8,36 @@
         Mystery <span class="gold">Hunter</span>
       </h1>
 
-      <div class="description-box">
-        <p>Bienvenido al desafío definitivo. Explora tu entorno, resuelve enigmas históricos y compite por ser el mejor investigador.</p>
-        <br>
-        <ul style="text-align: left; list-style: '✨ '; padding-left: 20px; color: #ccc; font-size: 0.9rem; margin-bottom: 20px;">
-          <li>Encuentra puntos de interés en el mapa.</li>
-          <li>Acércate físicamente para desbloquear el misterio.</li>
-          <li>Resuelve el acertijo y gana puntos para el ranking.</li>
-        </ul>
-        
-        <hr style="border: 0; border-top: 1px solid rgba(212, 175, 55, 0.3); margin: 20px 0;">
-
-        <h3 style="color: #d4af37; margin-bottom: 20px;">
-          @if (isLoginMode()) {
-            Iniciar Sesión
-          } @else {
-            Crear Cuenta
-          }
-        </h3>
-        
-        <input 
-          type="text" 
-          #playerNameInput
-          placeholder="Nombre de usuario..." 
-          class="auth-input"
-          style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
-        
-        @if (nameError()) {
-          <div class="error-message">{{ nameError() }}</div>
+      <h3 style="color: #d4af37; margin: 20px 0 15px 0;">
+        @if (isLoginMode()) {
+          Iniciar Sesión
+        } @else {
+          Crear Cuenta
         }
+      </h3>
+      
+      <input 
+        type="text" 
+        #playerNameInput
+        placeholder="Nombre de usuario..." 
+        class="auth-input"
+        style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
+      
+      @if (nameError()) {
+        <div class="error-message">{{ nameError() }}</div>
+      }
 
-        <input 
-          type="password" 
-          #passwordInput
-          placeholder="Contraseña..." 
-          class="auth-input"
-          (keyup.enter)="handleAuth(playerNameInput.value, passwordInput.value)"
-          style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
-        
-        @if (passwordError()) {
-          <div class="error-message">{{ passwordError() }}</div>
-        }
-      </div>
+      <input 
+        type="password" 
+        #passwordInput
+        placeholder="Contraseña..." 
+        class="auth-input"
+        (keyup.enter)="handleAuth(playerNameInput.value, passwordInput.value)"
+        style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
+      
+      @if (passwordError()) {
+        <div class="error-message">{{ passwordError() }}</div>
+      }
       
       <button class="start-button" (click)="handleAuth(playerNameInput.value, passwordInput.value)">
         {{ isLoginMode() ? 'Entrar' : 'Registrarse' }}
@@ -65,9 +54,36 @@
   </div>
 }
 
+<!-- PANTALLA DE INSTRUCCIONES (después del login) -->
+@if (showInstructions()) {
+  <div class="welcome-overlay">
+    <div class="welcome-card">
+      <img src="/assets/logoMistery.png" alt="Mystery Hunter Logo" class="mystery-logo">
+  
+      <h1 class="mystery-title">
+        Mystery <span class="gold">Hunter</span>
+      </h1>
+
+      <div class="description-box">
+        <p>Bienvenido al desafío definitivo. Explora tu entorno, resuelve enigmas históricos y compite por ser el mejor investigador.</p>
+        
+        <ul>
+          <li>Encuentra puntos de interés en el mapa.</li>
+          <li>Acércate físicamente para desbloquear el misterio.</li>
+          <li>Resuelve el acertijo y gana puntos para el ranking.</li>
+        </ul>
+      </div>
+      
+      <button class="start-button" (click)="closeInstructions()">
+        ¡Comenzar!
+      </button>
+    </div>
+  </div>
+}
+
 <div id="map" style="height: 100vh; width: 100%"></div>
 
-@if (!showWelcome()) {
+@if (!showWelcome() && !showInstructions()) {
   <button class="locate-button" (click)="goToCurrentLocation()">
     🎯
   </button>
@@ -75,8 +91,7 @@
 
 <div class="score-container">🏆 Puntos: {{ totalPoints() }}</div>
 
-<!-- ✅ NUEVO: Botón de logout -->
-@if (!showWelcome()) {
+@if (!showWelcome() && !showInstructions()) {
   <button class="logout-button" (click)="logout()">
     🚪 Salir
   </button>
@@ -87,8 +102,6 @@
     <span class="icon">🏆</span>
     <span class="text">Ranking</span>
   </button>
-
-  
 
   @if (showRanking()) {
     <div class="ranking-content">

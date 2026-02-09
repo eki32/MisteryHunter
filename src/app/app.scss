@@ -18,8 +18,8 @@
 /* ✅ BOTÓN DE REUBICACIÓN - POSICIÓN ARRIBA IZQUIERDA */
 .locate-button {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 20px;       /* Movido a la parte superior */
+  left: 20px;      /* Movido a la izquierda */
   width: 50px;
   height: 50px;
   background: rgba(26, 26, 26, 0.95);
@@ -65,23 +65,22 @@
   justify-content: center;
   align-items: center;
   z-index: 99999;
-  padding: 10px;
 }
 
 .welcome-card {
   background: #1a1a1a;
   border: 3px solid #d4af37;
   border-radius: 20px;
-  padding: 25px;
-  max-width: 480px;
+  padding: 40px;
+  max-width: 450px;
   width: 90%;
   text-align: center;
   box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
 
   .mystery-logo {
-    width: 85px;
+    width: 120px;
     height: auto;
-    margin: 0 auto 10px;
+    margin: 0 auto 20px;
     display: block;
     filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.15));
     animation: float 3s ease-in-out infinite;
@@ -89,10 +88,9 @@
 
   .mystery-title {
     color: #ffffff;
-    font-size: 2.2rem;
-    margin-bottom: 8px;
+    font-size: 2.8rem;
+    margin-bottom: 15px;
     text-shadow: 0 0 5px rgba(212, 175, 55, 0.25);
-    line-height: 1.1;
 
     .gold {
       color: #d4af37;
@@ -101,13 +99,13 @@
 
   .name-input {
     width: 100%;
-    padding: 10px;
-    margin: 10px 0;
+    padding: 12px;
+    margin: 15px 0;
     border: 2px solid #d4af37;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.1);
     color: white;
-    font-size: 0.95rem;
+    font-size: 1rem;
     transition: all 0.3s ease;
 
     &::placeholder {
@@ -124,19 +122,19 @@
 
   .description-box {
     color: #e0e0e0;
-    font-size: 0.92rem;
-    line-height: 1.4;
-    margin: 12px 0;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 20px 0;
 
     p {
-      margin-bottom: 8px;
+      margin-bottom: 15px;
     }
 
     ul {
       text-align: left;
-      padding-left: 18px;
+      padding-left: 20px;
       li {
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         list-style: '✨ ';
       }
     }
@@ -146,14 +144,13 @@
     background: #d4af37;
     color: #1a1a1a;
     border: none;
-    padding: 12px 35px;
-    font-size: 1rem;
+    padding: 15px 40px;
+    font-size: 1.1rem;
     font-weight: 800;
     border-radius: 10px;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.3s ease;
-    margin-top: 8px;
 
     &:hover {
       background: #f1c40f;
@@ -433,8 +430,8 @@
 /* Botón para cambiar entre login y registro */
 .toggle-mode-btn {
   width: 100%;
-  margin-top: 12px;
-  padding: 11px;
+  margin-top: 15px;
+  padding: 12px;
   background: transparent;
   border: 1px solid rgba(212, 175, 55, 0.3);
   color: #ccc;
@@ -596,48 +593,45 @@
   }
 
   .welcome-card {
-    padding: 1.5vh 3vw;
-    width: 96%;
+    padding: 20px;
+    width: 95%;
     border-width: 2px;
 
     .mystery-logo {
-      width: 12vw;
-      max-width: 45px;
-      margin-bottom: 0.6vh;
+      width: 80px;
+      margin-bottom: 15px;
     }
 
     .mystery-title {
-      font-size: 4.2vw;
-      margin-bottom: 0.5vh;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
     }
 
     .name-input {
-      padding: 0.9vh 2vw;
-      font-size: 3vw;
-      margin: 0.7vh 0;
+      padding: 10px;
+      font-size: 0.85rem;
+      margin: 12px 0;
     }
 
     .description-box {
-      font-size: 2.9vw;
-      margin: 0.7vh 0;
-      line-height: 1.2;
+      font-size: 0.85rem;
+      margin: 15px 0;
 
       p {
-        margin-bottom: 0.4vh;
+        margin-bottom: 10px;
       }
 
       ul {
-        padding-left: 3.5vw;
+        padding-left: 15px;
         li {
-          margin-bottom: 0.3vh;
+          margin-bottom: 6px;
         }
       }
     }
 
     .start-button {
-      padding: 0.9vh 5vw;
-      font-size: 3vw;
-      margin-top: 0.5vh;
+      padding: 12px 30px;
+      font-size: 0.9rem;
     }
   }
 
@@ -693,9 +687,8 @@
   }
 
   .toggle-mode-btn {
-    font-size: 0.72rem;
-    padding: 7px;
-    margin-top: 6px;
+    font-size: 0.8rem;
+    padding: 10px;
   }
 
   .logout-button {
@@ -716,39 +709,37 @@
   }
 
   .welcome-card {
-    padding: 18px;
+    padding: 25px;
     width: 92%;
 
     .mystery-logo {
-      width: 75px;
-      margin-bottom: 10px;
+      width: 100px;
+      margin-bottom: 18px;
     }
 
     .mystery-title {
-      font-size: 1.8rem;
-      margin-bottom: 8px;
+      font-size: 2rem;
+      margin-bottom: 12px;
     }
 
     .name-input {
-      padding: 9px;
-      font-size: 0.88rem;
-      margin: 9px 0;
+      padding: 11px;
+      font-size: 0.9rem;
+      margin: 13px 0;
     }
 
     .description-box {
-      font-size: 0.84rem;
-      margin: 10px 0;
-      line-height: 1.35;
+      font-size: 0.9rem;
+      margin: 18px 0;
 
       p {
-        margin-bottom: 6px;
+        margin-bottom: 12px;
       }
     }
 
     .start-button {
-      padding: 10px 28px;
-      font-size: 0.9rem;
-      margin-top: 7px;
+      padding: 13px 35px;
+      font-size: 0.95rem;
     }
   }
 
@@ -764,41 +755,13 @@
       max-height: 450px;
     }
   }
-
-  .toggle-mode-btn {
-    margin-top: 11px;
-  }
 }
 
 /* Samsung específico (360x740 y similares) */
 @media (min-width: 360px) and (max-width: 375px) and (min-height: 640px) and (max-height: 812px) {
   .welcome-card {
-    padding: 18px;
-
-    .mystery-logo {
-      width: 70px;
-      margin-bottom: 9px;
-    }
-
-    .mystery-title {
-      font-size: 1.7rem;
-      margin-bottom: 7px;
-    }
-
     .name-input {
-      padding: 9px;
-      font-size: 0.87rem;
-      margin: 9px 0;
-    }
-
-    .description-box {
-      font-size: 0.83rem;
-      margin: 9px 0;
-      line-height: 1.35;
-    }
-
-    .start-button {
-      padding: 10px 28px;
+      padding: 10px;
       font-size: 0.9rem;
     }
   }
@@ -836,33 +799,26 @@
   }
 
   .welcome-card {
-    padding: 22px;
-    max-width: 450px;
-
-    .mystery-logo {
-      width: 85px;
-      margin-bottom: 10px;
-    }
+    padding: 30px;
+    max-width: 400px;
 
     .mystery-title {
-      font-size: 2rem;
-      margin-bottom: 9px;
+      font-size: 2.3rem;
     }
 
     .name-input {
-      padding: 10px;
-      font-size: 0.92rem;
-      margin: 10px 0;
+      padding: 11px;
+      font-size: 0.95rem;
+      margin: 14px 0;
     }
 
     .description-box {
-      font-size: 0.88rem;
-      margin: 11px 0;
+      font-size: 0.95rem;
     }
 
     .start-button {
-      padding: 11px 32px;
-      font-size: 0.95rem;
+      padding: 14px 38px;
+      font-size: 1rem;
     }
   }
 
@@ -876,32 +832,9 @@
 /* iPhone específico - ajuste del ranking */
 @media (min-width: 390px) and (max-width: 430px) and (min-height: 844px) and (max-height: 932px) {
   .welcome-card {
-    padding: 20px;
-
-    .mystery-logo {
-      width: 80px;
-      margin-bottom: 10px;
-    }
-
-    .mystery-title {
-      font-size: 1.9rem;
-      margin-bottom: 8px;
-    }
-
     .name-input {
-      padding: 10px;
-      font-size: 0.9rem;
-      margin: 10px 0;
-    }
-
-    .description-box {
-      font-size: 0.87rem;
-      margin: 10px 0;
-    }
-
-    .start-button {
-      padding: 11px 30px;
-      font-size: 0.93rem;
+      padding: 11px;
+      font-size: 0.95rem;
     }
   }
 
@@ -936,32 +869,26 @@
   }
 
   .welcome-card {
-    padding: 28px;
+    padding: 35px;
     max-width: 500px;
 
-    .mystery-logo {
-      width: 95px;
-      margin-bottom: 12px;
-    }
-
     .mystery-title {
-      font-size: 2.3rem;
+      font-size: 2.5rem;
     }
 
     .name-input {
-      padding: 11px;
-      font-size: 0.98rem;
-      margin: 12px 0;
+      padding: 12px;
+      font-size: 1rem;
+      margin: 15px 0;
     }
 
     .description-box {
-      font-size: 0.95rem;
-      margin: 13px 0;
+      font-size: 1rem;
     }
 
     .start-button {
-      padding: 13px 38px;
-      font-size: 1.02rem;
+      padding: 15px 40px;
+      font-size: 1.05rem;
     }
   }
 }
@@ -974,32 +901,22 @@
   }
 
   .welcome-card {
-    max-width: 500px;
-    padding: 28px;
+    max-width: 520px;
   }
 }
 
 /* Pantallas muy anchas (desktop 1367px+) */
 @media (min-width: 1367px) {
   .welcome-card {
-    max-width: 520px;
-    padding: 30px;
-
-    .mystery-logo {
-      width: 100px;
-    }
+    max-width: 550px;
+    padding: 45px;
 
     .mystery-title {
-      font-size: 2.4rem;
+      font-size: 3rem;
     }
 
     .description-box {
-      font-size: 0.98rem;
-    }
-
-    .start-button {
-      padding: 14px 40px;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
     }
   }
 }
@@ -1007,48 +924,43 @@
 /* Orientación horizontal - Ajustes para welcome card */
 @media (orientation: landscape) and (max-height: 600px) {
   .welcome-card {
-    padding: 10px 16px;
+    padding: 20px 30px;
+    max-height: 90vh;
+    overflow-y: auto;
 
     .mystery-logo {
-      width: 45px;
-      margin-bottom: 4px;
+      width: 70px;
+      margin-bottom: 10px;
     }
 
     .mystery-title {
-      font-size: 1.3rem;
-      margin-bottom: 3px;
+      font-size: 1.8rem;
+      margin-bottom: 8px;
     }
 
     .name-input {
-      padding: 6px;
-      font-size: 0.75rem;
-      margin: 5px 0;
+      padding: 8px;
+      font-size: 0.85rem;
+      margin: 10px 0;
     }
 
     .description-box {
-      font-size: 0.72rem;
-      margin: 5px 0;
-      line-height: 1.2;
+      font-size: 0.85rem;
+      margin: 12px 0;
+      line-height: 1.4;
 
       p {
-        margin-bottom: 3px;
+        margin-bottom: 8px;
       }
 
       ul li {
-        margin-bottom: 2px;
+        margin-bottom: 5px;
       }
     }
 
     .start-button {
-      padding: 6px 20px;
-      font-size: 0.78rem;
-      margin-top: 4px;
-    }
-
-    .toggle-mode-btn {
-      padding: 5px;
-      font-size: 0.7rem;
-      margin-top: 4px;
+      padding: 10px 30px;
+      font-size: 0.9rem;
     }
   }
 
@@ -1059,87 +971,23 @@
   }
 }
 
-/* ============================================
-   FIX DEFINITIVO HONOR MAGIC V5 (DPI ALTO)
-   ============================================ */
-
-/* Detectamos el Honor por su combinación de ancho y densidad de píxeles */
-@media screen and (max-width: 400px) and (-webkit-min-device-pixel-ratio: 2.5) {
-  
-  .welcome-overlay {
-    padding: 15px !important;
-  }
-
+/* Orientación horizontal - altura media */
+@media (orientation: landscape) and (min-height: 601px) and (max-height: 800px) {
   .welcome-card {
-    padding: 20px !important;
-    width: 95% !important;
-    max-width: 380px !important;
-    /* Evitamos que la tarjeta se encoja demasiado */
-    min-height: 450px; 
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    max-height: 85vh;
+    overflow-y: auto;
 
-    .mystery-logo {
-      width: 65px !important; /* Tamaño fijo, no basado en VW */
-      margin: 0 auto 10px !important;
+    .name-input {
+      padding: 10px;
+      font-size: 0.9rem;
+      margin: 12px 0;
     }
+  }
 
-    .mystery-title {
-      font-size: 24px !important; /* Tamaño legible fijo */
-      margin-bottom: 10px !important;
-      line-height: 1.2 !important;
-    }
-
-    .description-box {
-      font-size: 14px !important; /* Texto base claro */
-      margin: 10px 0 !important;
-      line-height: 1.4 !important;
-
-      p {
-        margin-bottom: 8px !important;
-      }
-      
-      ul {
-        padding-left: 20px !important;
-        li {
-          margin-bottom: 5px !important;
-        }
-      }
-    }
-
-    .name-input, .auth-input {
-      padding: 12px !important;
-      margin: 8px 0 !important;
-      font-size: 15px !important;
-      height: 45px !important; /* Altura táctil cómoda */
-    }
-
-    .start-button {
-      padding: 12px 30px !important;
-      font-size: 15px !important;
-      margin-top: 15px !important;
-      width: auto !important;
-      align-self: center;
-    }
-
-    .toggle-mode-btn {
-      margin-top: 10px !important;
-      padding: 8px !important;
-      font-size: 13px !important;
-    }
-
-    .error-message {
-      font-size: 13px !important;
-      padding: 10px !important;
+  .ranking-container {
+    .ranking-content {
+      max-height: 70vh;
     }
   }
 }
 
-/* Si el teléfono está en horizontal (Doblado o abierto de lado) */
-@media screen and (max-height: 500px) {
-    .welcome-card {
-        max-height: 95vh !important;
-        overflow-y: auto !important;
-    }
-}

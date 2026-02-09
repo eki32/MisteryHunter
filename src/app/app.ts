@@ -13,6 +13,9 @@ declare global {
   interface Window {
     checkAnswerPopup: (titulo: string) => void;
   }
+  interface Navigator {
+    vibrate(pattern: number | number[]): boolean;
+  }
 }
 
 @Component({
@@ -24,6 +27,7 @@ declare global {
 })
 export class App {
   showWelcome = signal(true);
+  showInstructions = signal(false); // ✅ NUEVO
   private mysteryService = inject(MysteryService);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
@@ -35,7 +39,6 @@ export class App {
   totalPoints = signal(0);
   selectedMystery = signal<any>(null);
   private notifiedMysteries: Set<string> = new Set();
-  //private awardedMysteries: Set<string> = new Set();
 
   showSuccessModal = signal(false);
   solvedMysteryTitle = signal('');
@@ -67,13 +70,26 @@ export class App {
   private locationAttempts = 0;
   private maxLocationAttempts = 3;
 
-  // ✅ NUEVO: Variables para carga progresiva
-  // private visibleMysteries: Set<string> = new Set();
+  // ✅ Variables para carga progresiva
   private loadedMysteries: Set<string> = new Set();
-  // private INITIAL_LOAD_DISTANCE = 5000; // 5km inicial
   private LOAD_MORE_DISTANCE = 10000; // 10km para cargar más
   private BATCH_SIZE = 5; // Cargar de 5 en 5
   private currentUserLocation: any = null;
+
+  // ✅ NUEVO: Control de vibración única
+  private vibratedMysteries: Set<string> = new Set();
+
+  // Helper para vibración compatible con TypeScript
+  private vibrar(pattern: number | number[]): void {
+    try {
+      const nav = navigator as any;
+      if (nav.vibrate) {
+        nav.vibrate(pattern);
+      }
+    } catch (e) {
+      console.log('Vibración no soportada');
+    }
+  }
 
   constructor() {
     window.checkAnswerPopup = (titulo: string) => {
@@ -120,13 +136,11 @@ export class App {
 
   goToCurrentLocation() {
     if (this.currentUserLocation && this.map) {
-      // Usamos la ubicación que el mapa ya está rastreando en tiempo real
       this.map.setView(this.currentUserLocation, 16, {
         animate: true,
         duration: 1,
       });
     } else if (navigator.geolocation) {
-      // Fallback por si acaso el rastreo aún no ha empezado
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -172,6 +186,10 @@ export class App {
         m.desbloqueado = false;
       });
 
+      // ✅ Limpiar registros de notificaciones y vibraciones
+      this.notifiedMysteries.clear();
+      this.vibratedMysteries.clear();
+
       this.showWelcome.set(true);
 
       console.log('👋 Sesión cerrada');
@@ -208,7 +226,10 @@ export class App {
 
         console.log('✅ Login exitoso:', trimmedName);
         this.showWelcome.set(false);
-        if ('Notification' in window) {
+        this.showInstructions.set(true); // ✅ Mostrar instrucciones
+        
+        // ✅ Solicitar permisos de notificación
+        if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
         }
 
@@ -238,6 +259,7 @@ export class App {
 
         console.log('✅ Registro exitoso:', trimmedName);
         this.showWelcome.set(false);
+        this.showInstructions.set(true); // ✅ Mostrar instrucciones
       } else {
         if (result.error === 'El nombre ya está en uso') {
           this.nameError.set('⚠️ Este nombre ya está en uso');
@@ -301,6 +323,10 @@ export class App {
 
       this.map.closePopup();
       misterio.desbloqueado = true;
+
+      // ✅ Limpiar registros de notificación/vibración del misterio resuelto
+      this.notifiedMysteries.delete(misterio.id);
+      this.vibratedMysteries.delete(misterio.id);
 
       this.ngZone.run(() => {
         this.solvedMysteryTitle.set(misterio.titulo);
@@ -387,6 +413,11 @@ export class App {
     }
   }
 
+  // ✅ NUEVO: Cerrar pantalla de instrucciones
+  closeInstructions() {
+    this.showInstructions.set(false);
+  }
+
   async initMap(L: any): Promise<void> {
     return new Promise((resolve) => {
       if (navigator.geolocation) {
@@ -451,7 +482,6 @@ export class App {
       weight: 3,
     }).addTo(this.map);
 
-    // ✅ Guardar ubicación inicial
     this.currentUserLocation = L.latLng(lat, lng);
 
     this.map.locate({
@@ -478,8 +508,6 @@ export class App {
       this.currentUserLocation = e.latlng;
       this.lastAccuracy = e.accuracy;
       this.updateMysteriesDistance(e.latlng);
-
-      // ✅ NUEVO: Cargar más misterios cuando el usuario se mueve
       this.loadNearbyMysteries(e.latlng);
     });
 
@@ -487,7 +515,6 @@ export class App {
       console.warn('⚠️ Timeout de ubicación (es normal, seguirá intentando):', e.message);
     });
 
-    // ✅ NUEVO: Cargar misterios al mover/hacer zoom en el mapa
     this.map.on('moveend', () => {
       this.loadVisibleMysteries();
     });
@@ -513,8 +540,6 @@ export class App {
           this.playerMarker.setLatLng(newPos);
           this.currentUserLocation = newPos;
           this.updateMysteriesDistance(newPos);
-
-          // ✅ NUEVO: Cargar misterios cercanos
           this.loadNearbyMysteries(newPos);
         }
       },
@@ -553,7 +578,6 @@ export class App {
     }
   }
 
-  // ✅ NUEVO: Calcular distancia entre dos puntos
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     if (this.L) {
       const pos1 = this.L.latLng(lat1, lon1);
@@ -563,11 +587,9 @@ export class App {
     return Infinity;
   }
 
-  // ✅ NUEVO: Cargar solo misterios cercanos progresivamente
   private loadNearbyMysteries(userLocation: any) {
     if (!this.L || this.misteriosList.length === 0) return;
 
-    // Encontrar misterios no cargados que estén cerca
     const mysteriesToLoad = this.misteriosList
       .filter((m) => !this.loadedMysteries.has(m.id))
       .map((m) => ({
@@ -588,7 +610,6 @@ export class App {
     }
   }
 
-  // ✅ NUEVO: Cargar misterios visibles en el viewport del mapa
   private loadVisibleMysteries() {
     if (!this.map || !this.L || this.misteriosList.length === 0) return;
 
@@ -612,7 +633,6 @@ export class App {
     }
   }
 
-  // ✅ NUEVO: Añadir un marcador individual
   private addMysteryMarker(mystery: any) {
     if (!this.L || !this.map || this.markers.has(mystery.id)) return;
 
@@ -661,6 +681,43 @@ export class App {
     console.log(`📍 Marcador añadido: ${mystery.titulo}`);
   }
 
+  // ✅ NUEVO MÉTODO: Mostrar notificación del sistema tipo SMS/WhatsApp
+  private mostrarNotificacionProximidad(mystery: any, distance: number) {
+    // Vibración: patrón de aviso (corto-pausa-corto)
+    this.vibrar([200, 100, 200]);
+
+    // ✅ Notificación del sistema (siempre, esté la app abierta o no)
+    if (Notification.permission === 'granted') {
+      const notification = new Notification('📍 ¡Misterio Cerca!', {
+        body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
+        icon: 'assets/logoMistery.png',
+        badge: 'assets/locked.png',
+        tag: `proximity-${mystery.id}`, // Evita duplicados
+        requireInteraction: false,
+        silent: false, // Con sonido
+      });
+
+      // Auto-cerrar después de 4 segundos
+      setTimeout(() => {
+        notification.close();
+      }, 4000);
+
+      // Al hacer clic en la notificación, centrar el mapa en el misterio
+      notification.onclick = () => {
+        window.focus();
+        const marker = this.markers.get(mystery.id);
+        if (marker && this.map) {
+          this.map.setView(marker.getLatLng(), 17, {
+            animate: true,
+            duration: 0.5,
+          });
+          marker.openPopup();
+        }
+        notification.close();
+      };
+    }
+  }
+
   updateMysteriesDistance(userLocation: any) {
     if (!this.L || this.misteriosList.length === 0) {
       return;
@@ -672,9 +729,12 @@ export class App {
       iconAnchor: [16, 32],
     });
 
-    // ✅ OPTIMIZADO: Solo actualizar misterios cargados
+    const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
+
     this.loadedMysteries.forEach((mysteryId) => {
       const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
+      
+      // ✅ SI EL MISTERIO ESTÁ RESUELTO, NO HACER NADA (sin vibración, sin notificación)
       if (!m || m.desbloqueado) return;
 
       const marker = this.markers.get(m.id);
@@ -686,28 +746,26 @@ export class App {
 
       marker.setIcon(lockedIcon);
 
-      // ✅ VALIDACIÓN ANTI-FALSIFICACIÓN
-      // Si la distancia es menor al radio, pero la precisión es sospechosa (ej. 0 o > 100)
-      // las apps de Fake GPS suelen dar precisión 0 o valores fijos muy altos.
-      const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
+      // ✅ ZONA DE PROXIMIDAD: 100m antes del radio de desbloqueo
+      const proximityZone = unlockRadius + 100;
 
-      if (distance < unlockRadius) {
-        // ✅ NUEVO: Alerta sensorial y notificación (Solo la primera vez que entra al radio)
+      if (distance < proximityZone && distance >= unlockRadius) {
+        // ✅ Mostrar aviso SOLO la primera vez que entra en la zona de proximidad
         if (!this.notifiedMysteries.has(m.id)) {
-          // Vibración: Patrón de atención corto
-          if (navigator.vibrate) {
-            navigator.vibrate([300, 100, 300]);
-          }
-
-          // Notificación de sistema
-          if (Notification.permission === 'granted') {
-            new Notification('📍 Misterio Detectado', {
-              body: `¡Estás sobre ${m.titulo}! Abre el mapa para resolver el acertijo.`,
-              icon: 'assets/logoMistery.png',
-            });
-          }
-
+          this.mostrarNotificacionProximidad(m, distance);
           this.notifiedMysteries.add(m.id);
+        }
+
+        marker.bindPopup(`
+          <div style="text-align: center; padding: 10px;">
+            <b>📍 Estás cerca</b><br>
+            <span style="font-size: 12px;">Faltan ${Math.round(distance - unlockRadius)}m</span>
+          </div>`);
+      } else if (distance < unlockRadius && isLocationReliable) {
+        // ✅ DENTRO DEL RADIO: Vibración única al entrar
+        if (!this.vibratedMysteries.has(m.id)) {
+          this.vibrar([300, 100, 300]); // Vibración más larga al desbloquear
+          this.vibratedMysteries.add(m.id);
         }
 
         const popupContent = `
@@ -724,16 +782,16 @@ export class App {
           </div>`;
         marker.bindPopup(popupContent);
       } else if (distance < unlockRadius && !isLocationReliable) {
-        // Si está cerca pero el GPS es sospechoso, mostramos un aviso en lugar del acertijo
         marker.bindPopup(`
           <div style="text-align: center; padding: 10px;">
             <b>⚠️ Señal inestable</b><br>
-            <span style="font-size: 11px;">Mévete un poco para mejorar la precisión del GPS y desbloquear el misterio.</span>
+            <span style="font-size: 11px;">Muévete un poco para mejorar la precisión del GPS</span>
           </div>`);
       } else {
-        // Si el usuario se aleja, permitimos que pueda volver a ser notificado si entra de nuevo
-        if (distance > unlockRadius + 10) {
+        // ✅ FUERA DE RANGO: Resetear notificaciones
+        if (distance > proximityZone + 50) {
           this.notifiedMysteries.delete(m.id);
+          this.vibratedMysteries.delete(m.id);
         }
 
         marker.bindPopup(`
@@ -767,30 +825,25 @@ export class App {
         desbloqueado: this.userProgress.unlockedMysteries.includes(m.id),
       }));
 
-      // ✅ Limpiar marcadores existentes
       this.markers.forEach((marker) => {
         this.map.removeLayer(marker);
       });
       this.markers.clear();
       this.loadedMysteries.clear();
 
-      // ✅ OPTIMIZADO: Cargar solo misterios iniciales (cercanos o desbloqueados)
       if (this.currentUserLocation) {
-        // Cargar misterios desbloqueados primero
         const unlockedMysteries = this.misteriosList.filter((m) => m.desbloqueado);
         unlockedMysteries.forEach((m) => {
           this.addMysteryMarker(m);
           this.loadedMysteries.add(m.id);
         });
 
-        // Cargar misterios cercanos (dentro de 5km inicial)
         this.loadNearbyMysteries(this.currentUserLocation);
 
         console.log(
           `✅ Carga inicial: ${unlockedMysteries.length} desbloqueados + misterios cercanos`,
         );
       } else {
-        // Si no hay ubicación, cargar solo los primeros 10
         this.misteriosList.slice(0, 10).forEach((m) => {
           this.addMysteryMarker(m);
           this.loadedMysteries.add(m.id);
@@ -799,7 +852,6 @@ export class App {
         console.log('✅ Carga inicial: primeros 10 misterios (sin ubicación)');
       }
 
-      // Actualizar distancias si tenemos ubicación
       if (this.playerMarker) {
         const userLocation = this.playerMarker.getLatLng();
         this.updateMysteriesDistance(userLocation);

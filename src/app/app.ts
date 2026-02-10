@@ -721,12 +721,12 @@ export class App {
 
   // 2. Notificación vía Service Worker (API Recomendada)
   if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-    try {
+    try{
       const registration = await navigator.serviceWorker.ready;
       
       await registration.showNotification('📍 ¡Misterio Cerca!', {
         body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
-        icon: '/public/logoMistery.png',
+        icon: '/logoMistery.png',
         badge: '/assets/locked.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: `proximity-${mystery.id}`, // Evita duplicados
@@ -782,7 +782,7 @@ export class App {
 updateMysteriesDistance(userLocation: any) {
   if (!this.L || this.misteriosList.length === 0) return;
 
-  const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
+  const isLocationReliable = this.lastAccuracy > 0;//0.1 && this.lastAccuracy < 100;
 
   this.loadedMysteries.forEach((mysteryId) => {
     const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
@@ -893,7 +893,7 @@ updateMysteriesDistance(userLocation: any) {
       const registration = await navigator.serviceWorker.ready;
       await registration.showNotification('🔍 Test Mystery Hunter', {
         body: '¡Nuevo misterio cerca por resolver!',
-        icon: '/public/logoMistery.png', // ✅ Tu icono aquí
+        icon: '/logoMistery.png', // ✅ Tu icono aquí
         vibrate: [200, 100, 200],
         tag: 'test-notification'
       } as any);

@@ -26,9 +26,6 @@ declare global {
   styleUrl: './app.scss',
 })
 export class App {
-
-
-
   showWelcome = signal(true);
   showInstructions = signal(false); // ✅ NUEVO
   private mysteryService = inject(MysteryService);
@@ -345,12 +342,24 @@ export class App {
       return;
     }
 
+    // ✅ Función para limpiar acentos, mayúsculas y espacios
+    const normalizar = (texto: string) => {
+      return texto
+        .toLowerCase() // Todo a minúsculas
+        .trim() // Quitar espacios al inicio y final
+        .normalize('NFD') // Descomponer caracteres con acentos
+        .replace(/[\u0300-\u036f]/g, ''); // Eliminar los símbolos de acentos
+    };
+
+    const userClean = normalizar(respuestaUser);
+    const correctClean = normalizar(misterio.respuesta);
+
     console.log('🔍 Validando:');
     console.log('   Usuario escribió:', respuestaUser.toLowerCase());
     console.log('   Respuesta correcta:', misterio.respuesta.toLowerCase());
 
-    if (respuestaUser.toLowerCase() === misterio.respuesta.toLowerCase()) {
-      console.log('✅ ¡Respuesta correcta!');
+    if (userClean === correctClean) {
+      console.log('✅ ¡Respuesta correcta! (Normalizada)');
 
       this.map.closePopup();
       misterio.desbloqueado = true;
@@ -713,36 +722,36 @@ export class App {
   }
 
   // ✅ NUEVO MÉTODO: Mostrar notificación del sistema tipo SMS/WhatsApp
- private async mostrarNotificacionProximidad(mystery: any, distance: number) {
-  console.log('🔔 Lanzando alerta de proximidad para:', mystery.titulo);
-  
-  // 1. Vibración inmediata (hilo principal)
-  this.vibrar([200, 100, 200, 100, 200]);
+  private async mostrarNotificacionProximidad(mystery: any, distance: number) {
+    console.log('🔔 Lanzando alerta de proximidad para:', mystery.titulo);
 
-  // 2. Notificación vía Service Worker (API Recomendada)
-  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-    try{
-      const registration = await navigator.serviceWorker.ready;
-      
-      await registration.showNotification('📍 ¡Misterio Cerca!', {
-        body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
-        icon: '/logoMistery.png',
-        badge: '/assets/locked.png',
-        vibrate: [200, 100, 200, 100, 200],
-        tag: `proximity-${mystery.id}`, // Evita duplicados
-        renotify: true,
-        data: { mysteryId: mystery.id }
-      } as any);
+    // 1. Vibración inmediata (hilo principal)
+    this.vibrar([200, 100, 200, 100, 200]);
 
-      console.log('✅ Notificación de proximidad enviada con éxito');
-    } catch (error) {
-      console.error('❌ Error al usar Service Worker para proximidad:', error);
-      this.mostrarNotificacionNormal(mystery, distance); // Fallback
+    // 2. Notificación vía Service Worker (API Recomendada)
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+
+        await registration.showNotification('📍 ¡Misterio Cerca!', {
+          body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
+          icon: '/logoMistery.png',
+          badge: '/assets/locked.png',
+          vibrate: [200, 100, 200, 100, 200],
+          tag: `proximity-${mystery.id}`, // Evita duplicados
+          renotify: true,
+          data: { mysteryId: mystery.id },
+        } as any);
+
+        console.log('✅ Notificación de proximidad enviada con éxito');
+      } catch (error) {
+        console.error('❌ Error al usar Service Worker para proximidad:', error);
+        this.mostrarNotificacionNormal(mystery, distance); // Fallback
+      }
+    } else {
+      this.mostrarNotificacionNormal(mystery, distance);
     }
-  } else {
-    this.mostrarNotificacionNormal(mystery, distance);
   }
-}
 
   // Notificación normal (fallback)
   // Notificación normal (fallback)
@@ -779,58 +788,60 @@ export class App {
     }
   }
 
-updateMysteriesDistance(userLocation: any) {
-  if (!this.L || this.misteriosList.length === 0) return;
+  updateMysteriesDistance(userLocation: any) {
+    if (!this.L || this.misteriosList.length === 0) return;
 
-  const isLocationReliable = this.lastAccuracy > 0;//0.1 && this.lastAccuracy < 100;
+    const isLocationReliable = this.lastAccuracy > 0; //0.1 && this.lastAccuracy < 100;
 
-  this.loadedMysteries.forEach((mysteryId) => {
-    const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
-    if (!m || m.desbloqueado) return;
+    this.loadedMysteries.forEach((mysteryId) => {
+      const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
+      if (!m || m.desbloqueado) return;
 
-    const marker = this.markers.get(m.id);
-    if (!marker) return;
+      const marker = this.markers.get(m.id);
+      if (!marker) return;
 
-    const distance = userLocation.distanceTo(this.L.latLng(m.latitud, m.longitud));
-    
-    // --- LÓGICA DE RADIOS ---
-    const unlockRadius = m.radioDesbloqueo || 50; // El de Firebase
-    const proximityZone = unlockRadius + 100;    // Avisamos 100m antes
+      const distance = userLocation.distanceTo(this.L.latLng(m.latitud, m.longitud));
 
-    // A. ZONA DE AVISO (Notificación tipo SMS)
-    if (distance < proximityZone && distance >= unlockRadius) {
-      if (!this.notifiedMysteries.has(m.id)) {
-        this.mostrarNotificacionProximidad(m, distance);
-        this.notifiedMysteries.add(m.id);
-      }
-      
-      marker.bindPopup(`<b>📍 Cerca de: ${m.titulo}</b><br>Faltan ${Math.round(distance - unlockRadius)}m`);
-    }
+      // --- LÓGICA DE RADIOS ---
+      const unlockRadius = m.radioDesbloqueo || 50; // El de Firebase
+      const proximityZone = unlockRadius + 100; // Avisamos 100m antes
 
-    // B. ZONA DE ACCIÓN (Desbloqueo y Vibración Fuerte)
-    else if (distance < unlockRadius && isLocationReliable) {
-      if (!this.vibratedMysteries.has(m.id)) {
-        // Vibración mucho más larga para indicar que "ya puede jugar"
-        this.vibrar([500, 100, 500, 100, 500]);
-        this.vibratedMysteries.add(m.id);
-        
-        // Opcional: Auto-abrir el popup al llegar
-        marker.openPopup();
+      // A. ZONA DE AVISO (Notificación tipo SMS)
+      if (distance < proximityZone && distance >= unlockRadius) {
+        if (!this.notifiedMysteries.has(m.id)) {
+          this.mostrarNotificacionProximidad(m, distance);
+          this.notifiedMysteries.add(m.id);
+        }
+
+        marker.bindPopup(
+          `<b>📍 Cerca de: ${m.titulo}</b><br>Faltan ${Math.round(distance - unlockRadius)}m`,
+        );
       }
 
-      if (!marker.isPopupOpen()) {
-        const popupContent = `
+      // B. ZONA DE ACCIÓN (Desbloqueo y Vibración Fuerte)
+      else if (distance < unlockRadius && isLocationReliable) {
+        if (!this.vibratedMysteries.has(m.id)) {
+          // Vibración mucho más larga para indicar que "ya puede jugar"
+          this.vibrar([500, 100, 500, 100, 500]);
+          this.vibratedMysteries.add(m.id);
+
+          // Opcional: Auto-abrir el popup al llegar
+          marker.openPopup();
+        }
+
+        if (!marker.isPopupOpen()) {
+          const popupContent = `
           <div style="text-align: center; min-width: 180px;">
             <h3 style="color: #d4af37;">🔍 ${m.titulo}</h3>
             <p><i>"${m.acertijo}"</i></p>
             <input type="text" id="ans-${m.titulo}" placeholder="Tu respuesta..." style="width: 80%; margin-bottom: 8px;">
             <button onclick="window.checkAnswerPopup('${m.titulo}')" style="background: #d4af37; border: none; padding: 8px; width: 100%; border-radius: 4px; font-weight: bold;">RESOLVER</button>
           </div>`;
-        marker.bindPopup(popupContent);
+          marker.bindPopup(popupContent);
+        }
       }
-    }
-  });
-}
+    });
+  }
 
   checkAnswer(inputValue: string) {
     const misterioActual = this.selectedMystery();
@@ -888,18 +899,18 @@ updateMysteriesDistance(userLocation: any) {
   }
 
   async testNotification() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification('🔍 Test Mystery Hunter', {
-        body: '¡Nuevo misterio cerca por resolver!',
-        icon: '/logoMistery.png', // ✅ Tu icono aquí
-        vibrate: [200, 100, 200],
-        tag: 'test-notification'
-      } as any);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification('🔍 Test Mystery Hunter', {
+          body: '¡Nuevo misterio cerca por resolver!',
+          icon: '/logoMistery.png', // ✅ Tu icono aquí
+          vibrate: [200, 100, 200],
+          tag: 'test-notification',
+        } as any);
+      }
+    } catch (e) {
+      alert('❌ Error: ' + (e as Error).message);
     }
-  } catch (e) {
-    alert('❌ Error: ' + (e as Error).message);
   }
-}
 }

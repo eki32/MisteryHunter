@@ -84,10 +84,10 @@ export class App {
   private vibrar(pattern: number | number[]): void {
     // ✅ No vibrar si estamos haciendo logout o en pantallas de bienvenida/instrucciones
     if (this.isLoggingOut || this.showWelcome() || this.showInstructions()) return;
-    
+
     // ✅ No vibrar si no hay usuario logueado
     if (!this.userId) return;
-    
+
     try {
       const nav = navigator as any;
       if (nav.vibrate) {
@@ -108,6 +108,18 @@ export class App {
         this.validarDesdePopup(titulo, respuestaUser);
       });
     };
+
+    // ✅ Registrar Service Worker para notificaciones en segundo plano
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/service-worker.js')
+        .then((registration) => {
+          console.log('✅ Service Worker registrado:', registration.scope);
+        })
+        .catch((error) => {
+          console.error('❌ Error al registrar Service Worker:', error);
+        });
+    }
 
     afterNextRender(async () => {
       const leafletModule = await import('leaflet');
@@ -243,7 +255,7 @@ export class App {
         console.log('✅ Login exitoso:', trimmedName);
         this.showWelcome.set(false);
         this.showInstructions.set(true); // ✅ Mostrar instrucciones
-        
+
         // ✅ Solicitar permisos de notificación
         if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
@@ -698,27 +710,62 @@ export class App {
   }
 
   // ✅ NUEVO MÉTODO: Mostrar notificación del sistema tipo SMS/WhatsApp
-  private mostrarNotificacionProximidad(mystery: any, distance: number) {
-    // Vibración: patrón de aviso (corto-pausa-corto)
-    this.vibrar([200, 100, 200]);
+  private async mostrarNotificacionProximidad(mystery: any, distance: number) {
+    console.log('🔔 Intentando enviar notificación para:', mystery.titulo);
 
-    // ✅ Notificación del sistema (siempre, esté la app abierta o no)
-    if (Notification.permission === 'granted') {
+    // ✅ VIBRACIÓN DIRECTA (funciona incluso con pantalla apagada)
+    this.vibrar([200, 100, 200, 100, 200]); // Patrón más largo y notorio
+
+    // ✅ NOTIFICACIÓN VÍA SERVICE WORKER (funciona en segundo plano)
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+
+        // Enviar mensaje al Service Worker para que muestre la notificación
+        registration.active?.postMessage({
+          type: 'PROXIMITY_ALERT',
+          title: '📍 ¡Misterio Cerca!',
+          body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
+          mystery: { id: mystery.id, titulo: mystery.titulo },
+        });
+
+        console.log('✅ Notificación enviada via Service Worker');
+      } catch (error) {
+        console.error('❌ Error al enviar notificación:', error);
+        // Fallback: notificación normal
+        this.mostrarNotificacionNormal(mystery, distance);
+      }
+    } else if (Notification.permission === 'granted') {
+      // Fallback si no hay Service Worker
+      this.mostrarNotificacionNormal(mystery, distance);
+    } else {
+      console.warn('⚠️ Permisos de notificación no concedidos:', Notification.permission);
+      // Intentar pedir permisos de nuevo
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        console.log('📱 Permiso de notificación:', permission);
+      }
+    }
+  }
+
+  // Notificación normal (fallback)
+  // Notificación normal (fallback)
+  private mostrarNotificacionNormal(mystery: any, distance: number) {
+    try {
+      // Cast a 'any' para evitar que TS valide las propiedades contra la interfaz estándar
       const notification = new Notification('📍 ¡Misterio Cerca!', {
         body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
-        icon: 'assets/logoMistery.png',
-        badge: 'assets/locked.png',
-        tag: `proximity-${mystery.id}`, // Evita duplicados
+        icon: '/assets/logoMistery.png',
+        badge: '/assets/locked.png',
+        tag: `proximity-${mystery.id}`,
         requireInteraction: false,
-        silent: false, // Con sonido
-      });
+        silent: false,
+        vibrate: [200, 100, 200, 100, 200], // TypeScript ya no marcará rojo aquí
+        renotify: true,
+      } as any);
 
-      // Auto-cerrar después de 4 segundos
-      setTimeout(() => {
-        notification.close();
-      }, 4000);
+      setTimeout(() => notification.close(), 5000);
 
-      // Al hacer clic en la notificación, centrar el mapa en el misterio
       notification.onclick = () => {
         window.focus();
         const marker = this.markers.get(mystery.id);
@@ -731,13 +778,13 @@ export class App {
         }
         notification.close();
       };
+    } catch (error) {
+      console.error('❌ Error al crear notificación normal:', error);
     }
   }
 
   updateMysteriesDistance(userLocation: any) {
-    if (!this.L || this.misteriosList.length === 0) {
-      return;
-    }
+    if (!this.L || this.misteriosList.length === 0) return;
 
     const lockedIcon = this.L.icon({
       iconUrl: 'assets/locked.png',
@@ -749,8 +796,6 @@ export class App {
 
     this.loadedMysteries.forEach((mysteryId) => {
       const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
-      
-      // ✅ SI EL MISTERIO ESTÁ RESUELTO, NO HACER NADA (sin vibración, sin notificación)
       if (!m || m.desbloqueado) return;
 
       const marker = this.markers.get(m.id);
@@ -758,67 +803,69 @@ export class App {
 
       const mysteryPos = this.L.latLng(m.latitud, m.longitud);
       const distance = userLocation.distanceTo(mysteryPos);
+
+      // ✅ USAMOS EL RADIO DE FIREBASE
       const unlockRadius = m.radioDesbloqueo || 50;
+      // ✅ DEFINIMOS EL MARGEN DE AVISO (Ej: 50 metros antes de llegar al radio de desbloqueo)
+      const notificationMargin = 50;
+      const proximityZone = unlockRadius + notificationMargin;
 
       marker.setIcon(lockedIcon);
 
-      // ✅ ZONA DE PROXIMIDAD: 100m antes del radio de desbloqueo
-      const proximityZone = unlockRadius + 100;
-
+      // 1️⃣ RANGO DE NOTIFICACIÓN (Aproximación)
       if (distance < proximityZone && distance >= unlockRadius) {
-        // ✅ Mostrar aviso SOLO la primera vez que entra en la zona de proximidad
         if (!this.notifiedMysteries.has(m.id)) {
+          // Ejecuta vibración y notificación tipo SMS
           this.mostrarNotificacionProximidad(m, distance);
           this.notifiedMysteries.add(m.id);
         }
 
         marker.bindPopup(`
-          <div style="text-align: center; padding: 10px;">
-            <b>📍 Estás cerca</b><br>
-            <span style="font-size: 12px;">Faltan ${Math.round(distance - unlockRadius)}m</span>
-          </div>`);
-      } else if (distance < unlockRadius && isLocationReliable) {
-        // ✅ DENTRO DEL RADIO: Vibración única al entrar
+        <div style="text-align: center; padding: 10px;">
+          <b>📍 ¡Casi estás!</b><br>
+          <span style="font-size: 12px;">El misterio está a ${Math.round(distance - unlockRadius)}m</span>
+        </div>`);
+      }
+
+      // 2️⃣ RANGO DE DESBLOQUEO (Llegada al punto exacto de Firebase)
+      else if (distance < unlockRadius && isLocationReliable) {
         if (!this.vibratedMysteries.has(m.id)) {
-          this.vibrar([300, 100, 300]); // Vibración más larga al desbloquear
+          // ✅ VIBRACIÓN MÁS FUERTE/LARGA al entrar en el radio real
+          this.vibrar([500, 110, 500, 110, 500]);
           this.vibratedMysteries.add(m.id);
         }
 
-        // ✅ IMPORTANTE: Solo actualizar el popup si NO está abierto (evita cerrar el teclado)
         if (!marker.isPopupOpen()) {
           const popupContent = `
-            <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
-              <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
-              <p style="font-style: italic; margin: 10px 0; font-size: 14px; line-height: 1.4;">"${m.acertijo}"</p>
-              <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ Estás en el lugar correcto</p>
-              <input type="text" id="ans-${m.titulo}" placeholder="Respuesta..." 
-                     style="width: calc(100% - 16px); padding: 8px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 6px;">
-              <button onclick="window.checkAnswerPopup('${m.titulo}')" 
-                      style="padding: 10px 20px; background: #d4af37; color: #1a1a1a; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
-                Resolver
-              </button>
-            </div>`;
+          <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
+            <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
+            <p style="font-style: italic; margin: 10px 0; font-size: 14px; line-height: 1.4;">"${m.acertijo}"</p>
+            <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ Has llegado al destino</p>
+            <input type="text" id="ans-${m.titulo}" placeholder="Respuesta..." 
+                   style="width: calc(100% - 16px); padding: 8px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 6px;">
+            <button onclick="window.checkAnswerPopup('${m.titulo}')" 
+                    style="padding: 10px 20px; background: #d4af37; color: #1a1a1a; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
+              Resolver
+            </button>
+          </div>`;
           marker.bindPopup(popupContent);
         }
-      } else if (distance < unlockRadius && !isLocationReliable) {
-        marker.bindPopup(`
-          <div style="text-align: center; padding: 10px;">
-            <b>⚠️ Señal inestable</b><br>
-            <span style="font-size: 11px;">Muévete un poco para mejorar la precisión del GPS</span>
-          </div>`);
-      } else {
-        // ✅ FUERA DE RANGO: Resetear notificaciones
-        if (distance > proximityZone + 50) {
+      }
+
+      // 3️⃣ FUERA DE RANGO
+      else {
+        // Limpiamos los registros si el usuario se aleja considerablemente del radio de Firebase
+        if (distance > proximityZone + 100) {
           this.notifiedMysteries.delete(m.id);
           this.vibratedMysteries.delete(m.id);
         }
 
         marker.bindPopup(`
-          <div style="text-align: center; padding: 10px;">
-            <b>🔒 Bloqueado</b><br>
-            <span style="font-size: 12px;">Estás a ${Math.round(distance)}m</span><br>
-            <span style="font-size: 11px; color: #666;">Acércate a ${unlockRadius}m</span>
-          </div>`);
+        <div style="text-align: center; padding: 10px;">
+          <b>🔒 Bloqueado</b><br>
+          <span style="font-size: 12px;">Distancia: ${Math.round(distance)}m</span><br>
+          <span style="font-size: 11px; color: #666;">Debes entrar en el radio de ${unlockRadius}m</span>
+        </div>`);
       }
     });
   }

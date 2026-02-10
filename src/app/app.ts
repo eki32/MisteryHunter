@@ -78,9 +78,16 @@ export class App {
 
   // ✅ NUEVO: Control de vibración única
   private vibratedMysteries: Set<string> = new Set();
+  private isLoggingOut: boolean = false; // ✅ Flag para evitar vibraciones durante logout
 
   // Helper para vibración compatible con TypeScript
   private vibrar(pattern: number | number[]): void {
+    // ✅ No vibrar si estamos haciendo logout o en pantallas de bienvenida/instrucciones
+    if (this.isLoggingOut || this.showWelcome() || this.showInstructions()) return;
+    
+    // ✅ No vibrar si no hay usuario logueado
+    if (!this.userId) return;
+    
     try {
       const nav = navigator as any;
       if (nav.vibrate) {
@@ -157,6 +164,9 @@ export class App {
 
   logout() {
     if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      // ✅ Activar flag INMEDIATAMENTE para bloquear vibraciones
+      this.isLoggingOut = true;
+
       localStorage.removeItem('mysteryHunterUserId');
       localStorage.removeItem('mysteryHunterPlayerName');
 
@@ -191,8 +201,14 @@ export class App {
       this.vibratedMysteries.clear();
 
       this.showWelcome.set(true);
+      this.showInstructions.set(false);
 
       console.log('👋 Sesión cerrada');
+
+      // ✅ Reactivar vibraciones después de 1 segundo (cuando ya se mostró el login)
+      setTimeout(() => {
+        this.isLoggingOut = false;
+      }, 1000);
     }
   }
 

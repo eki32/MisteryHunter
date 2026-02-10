@@ -821,9 +821,12 @@ export class App {
           // ✅ Vibración extra fuerte al llegar
           this.vibrar([500, 100, 500]);
           this.vibratedMysteries.add(m.id);
+
+
+            marker.openPopup();
         }
 
-        marker.openPopup();
+      
 
         if (!marker.isPopupOpen()) {
           const popupContent = `

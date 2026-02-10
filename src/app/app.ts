@@ -83,7 +83,7 @@ export class App {
   // Helper para vibración compatible con TypeScript
   private vibrar(pattern: number | number[]): void {
     // ✅ No vibrar si estamos haciendo logout o en pantallas de bienvenida/instrucciones
-    if (this.isLoggingOut || this.showWelcome() || this.showInstructions()) return;
+    if (this.isLoggingOut || this.showWelcome()) return;
 
     // ✅ No vibrar si no hay usuario logueado
     if (!this.userId) return;
@@ -791,7 +791,7 @@ export class App {
   updateMysteriesDistance(userLocation: any) {
     if (!this.L || this.misteriosList.length === 0) return;
 
-    const isLocationReliable = this.lastAccuracy > 0; //0.1 && this.lastAccuracy < 100;
+    const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 250;
 
     this.loadedMysteries.forEach((mysteryId) => {
       const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
@@ -806,31 +806,24 @@ export class App {
       const unlockRadius = m.radioDesbloqueo || 50; // El de Firebase
       const proximityZone = unlockRadius + 100; // Avisamos 100m antes
 
-      // A. ZONA DE AVISO (Notificación tipo SMS)
+      // A. ZONA DE AVISO (Bolsillo)
       if (distance < proximityZone && distance >= unlockRadius) {
         if (!this.notifiedMysteries.has(m.id)) {
+          // ✅ Forzamos la notificación moderna que sí suena/vibra en bolsillo
           this.mostrarNotificacionProximidad(m, distance);
           this.notifiedMysteries.add(m.id);
         }
-
-        marker.bindPopup(
-          `<b>📍 Cerca de: ${m.titulo}</b><br>Faltan ${Math.round(distance - unlockRadius)}m`,
-        );
       }
 
-      // B. ZONA DE ACCIÓN (Desbloqueo y Vibración Fuerte)
+      // B. ZONA DE DESBLOQUEO
       else if (distance < unlockRadius && isLocationReliable) {
         if (!this.vibratedMysteries.has(m.id)) {
-          // Vibración mucho más larga para indicar que "ya puede jugar"
+          // ✅ Vibración extra fuerte al llegar
           this.vibrar([500, 100, 500]);
-          //this.vibratedMysteries.add(m.id);
-
-          this.mostrarNotificacionProximidad(m, distance);
-          this.notifiedMysteries.add(m.id);
-
-          // Opcional: Auto-abrir el popup al llegar
-          marker.openPopup();
+          this.vibratedMysteries.add(m.id);
         }
+
+        marker.openPopup();
 
         if (!marker.isPopupOpen()) {
           const popupContent = `

@@ -713,43 +713,36 @@ export class App {
   }
 
   // ✅ NUEVO MÉTODO: Mostrar notificación del sistema tipo SMS/WhatsApp
-  private async mostrarNotificacionProximidad(mystery: any, distance: number) {
-    console.log('🔔 Intentando enviar notificación para:', mystery.titulo);
+ private async mostrarNotificacionProximidad(mystery: any, distance: number) {
+  console.log('🔔 Lanzando alerta de proximidad para:', mystery.titulo);
+  
+  // 1. Vibración inmediata (hilo principal)
+  this.vibrar([200, 100, 200, 100, 200]);
 
-    // ✅ VIBRACIÓN DIRECTA (funciona incluso con pantalla apagada)
-    this.vibrar([200, 100, 200, 100, 200]); // Patrón más largo y notorio
+  // 2. Notificación vía Service Worker (API Recomendada)
+  if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      
+      await registration.showNotification('📍 ¡Misterio Cerca!', {
+        body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
+        icon: '/assets/logoMistery.png',
+        badge: '/assets/locked.png',
+        vibrate: [200, 100, 200, 100, 200],
+        tag: `proximity-${mystery.id}`, // Evita duplicados
+        renotify: true,
+        data: { mysteryId: mystery.id }
+      } as any);
 
-    // ✅ NOTIFICACIÓN VÍA SERVICE WORKER (funciona en segundo plano)
-    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-
-        // Enviar mensaje al Service Worker para que muestre la notificación
-        registration.active?.postMessage({
-          type: 'PROXIMITY_ALERT',
-          title: '📍 ¡Misterio Cerca!',
-          body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
-          mystery: { id: mystery.id, titulo: mystery.titulo },
-        });
-
-        console.log('✅ Notificación enviada via Service Worker');
-      } catch (error) {
-        console.error('❌ Error al enviar notificación:', error);
-        // Fallback: notificación normal
-        this.mostrarNotificacionNormal(mystery, distance);
-      }
-    } else if (Notification.permission === 'granted') {
-      // Fallback si no hay Service Worker
-      this.mostrarNotificacionNormal(mystery, distance);
-    } else {
-      console.warn('⚠️ Permisos de notificación no concedidos:', Notification.permission);
-      // Intentar pedir permisos de nuevo
-      if (Notification.permission === 'default') {
-        const permission = await Notification.requestPermission();
-        console.log('📱 Permiso de notificación:', permission);
-      }
+      console.log('✅ Notificación de proximidad enviada con éxito');
+    } catch (error) {
+      console.error('❌ Error al usar Service Worker para proximidad:', error);
+      this.mostrarNotificacionNormal(mystery, distance); // Fallback
     }
+  } else {
+    this.mostrarNotificacionNormal(mystery, distance);
   }
+}
 
   // Notificación normal (fallback)
   // Notificación normal (fallback)
@@ -786,92 +779,58 @@ export class App {
     }
   }
 
-  updateMysteriesDistance(userLocation: any) {
-    if (!this.L || this.misteriosList.length === 0) return;
+updateMysteriesDistance(userLocation: any) {
+  if (!this.L || this.misteriosList.length === 0) return;
 
-    const lockedIcon = this.L.icon({
-      iconUrl: 'assets/locked.png',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-    });
+  const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
 
-    const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
+  this.loadedMysteries.forEach((mysteryId) => {
+    const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
+    if (!m || m.desbloqueado) return;
 
-    this.loadedMysteries.forEach((mysteryId) => {
-      const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
-      if (!m || m.desbloqueado) return;
+    const marker = this.markers.get(m.id);
+    if (!marker) return;
 
-      const marker = this.markers.get(m.id);
-      if (!marker) return;
+    const distance = userLocation.distanceTo(this.L.latLng(m.latitud, m.longitud));
+    
+    // --- LÓGICA DE RADIOS ---
+    const unlockRadius = m.radioDesbloqueo || 50; // El de Firebase
+    const proximityZone = unlockRadius + 100;    // Avisamos 100m antes
 
-      const mysteryPos = this.L.latLng(m.latitud, m.longitud);
-      const distance = userLocation.distanceTo(mysteryPos);
+    // A. ZONA DE AVISO (Notificación tipo SMS)
+    if (distance < proximityZone && distance >= unlockRadius) {
+      if (!this.notifiedMysteries.has(m.id)) {
+        this.mostrarNotificacionProximidad(m, distance);
+        this.notifiedMysteries.add(m.id);
+      }
+      
+      marker.bindPopup(`<b>📍 Cerca de: ${m.titulo}</b><br>Faltan ${Math.round(distance - unlockRadius)}m`);
+    }
 
-      // ✅ USAMOS EL RADIO DE FIREBASE
-      const unlockRadius = m.radioDesbloqueo || 50;
-      // ✅ DEFINIMOS EL MARGEN DE AVISO (Ej: 50 metros antes de llegar al radio de desbloqueo)
-      const notificationMargin = 50;
-      const proximityZone = unlockRadius + notificationMargin;
-
-      marker.setIcon(lockedIcon);
-
-      // 1️⃣ RANGO DE NOTIFICACIÓN (Aproximación)
-      if (distance < proximityZone && distance >= unlockRadius) {
-        if (!this.notifiedMysteries.has(m.id)) {
-          // Ejecuta vibración y notificación tipo SMS
-          this.mostrarNotificacionProximidad(m, distance);
-          this.notifiedMysteries.add(m.id);
-        }
-
-        marker.bindPopup(`
-        <div style="text-align: center; padding: 10px;">
-          <b>📍 ¡Casi estás!</b><br>
-          <span style="font-size: 12px;">El misterio está a ${Math.round(distance - unlockRadius)}m</span>
-        </div>`);
+    // B. ZONA DE ACCIÓN (Desbloqueo y Vibración Fuerte)
+    else if (distance < unlockRadius && isLocationReliable) {
+      if (!this.vibratedMysteries.has(m.id)) {
+        // Vibración mucho más larga para indicar que "ya puede jugar"
+        this.vibrar([500, 100, 500, 100, 500]);
+        this.vibratedMysteries.add(m.id);
+        
+        // Opcional: Auto-abrir el popup al llegar
+        marker.openPopup();
       }
 
-      // 2️⃣ RANGO DE DESBLOQUEO (Llegada al punto exacto de Firebase)
-      else if (distance < unlockRadius && isLocationReliable) {
-        if (!this.vibratedMysteries.has(m.id)) {
-          // ✅ VIBRACIÓN MÁS FUERTE/LARGA al entrar en el radio real
-          this.vibrar([500, 110, 500, 110, 500]);
-          this.vibratedMysteries.add(m.id);
-        }
-
-        if (!marker.isPopupOpen()) {
-          const popupContent = `
-          <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
-            <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
-            <p style="font-style: italic; margin: 10px 0; font-size: 14px; line-height: 1.4;">"${m.acertijo}"</p>
-            <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ Has llegado al destino</p>
-            <input type="text" id="ans-${m.titulo}" placeholder="Respuesta..." 
-                   style="width: calc(100% - 16px); padding: 8px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 6px;">
-            <button onclick="window.checkAnswerPopup('${m.titulo}')" 
-                    style="padding: 10px 20px; background: #d4af37; color: #1a1a1a; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
-              Resolver
-            </button>
+      if (!marker.isPopupOpen()) {
+        const popupContent = `
+          <div style="text-align: center; min-width: 180px;">
+            <h3 style="color: #d4af37;">🔍 ${m.titulo}</h3>
+            <p><i>"${m.acertijo}"</i></p>
+            <input type="text" id="ans-${m.titulo}" placeholder="Tu respuesta..." style="width: 80%; margin-bottom: 8px;">
+            <button onclick="window.checkAnswerPopup('${m.titulo}')" style="background: #d4af37; border: none; padding: 8px; width: 100%; border-radius: 4px; font-weight: bold;">RESOLVER</button>
           </div>`;
-          marker.bindPopup(popupContent);
-        }
+        marker.bindPopup(popupContent);
       }
-
-      // 3️⃣ FUERA DE RANGO
-      else {
-        // Limpiamos los registros si el usuario se aleja considerablemente del radio de Firebase
-        if (distance > proximityZone + 100) {
-          this.notifiedMysteries.delete(m.id);
-          this.vibratedMysteries.delete(m.id);
-        }
-
-        marker.bindPopup(`
-        <div style="text-align: center; padding: 10px;">
-          <b>🔒 Bloqueado</b><br>
-          <span style="font-size: 12px;">Distancia: ${Math.round(distance)}m</span><br>
-          <span style="font-size: 11px; color: #666;">Debes entrar en el radio de ${unlockRadius}m</span>
-        </div>`);
-      }
-    });
-  }
+    }
+  });
+}
 
   checkAnswer(inputValue: string) {
     const misterioActual = this.selectedMystery();
@@ -927,87 +886,4 @@ export class App {
       }
     });
   }
-
-  // Añadir al final de la clase, antes del último }
-
-testVibration() {
-  try {
-    const nav = navigator as any;
-    if (nav.vibrate) {
-      nav.vibrate([300, 100, 300, 100, 300]);
-      alert('✅ Vibración ejecutada! Si no sentiste nada, tu dispositivo no la soporta.');
-    } else {
-      alert('❌ Tu navegador NO soporta vibración');
-    }
-  } catch (e) {
-    alert('❌ Error: ' + e);
-  }
-}
-
-// ✅ TEST DE NOTIFICACIÓN USANDO SERVICE WORKER (Recomendado por el navegador)
-async testNotification() {
-  try {
-    // 1. Verificar/Pedir permisos
-    if (Notification.permission !== 'granted') {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('❌ Debes permitir las notificaciones para probar esta función.');
-        return;
-      }
-    }
-
-    // 2. Intentar usar Service Worker (la forma moderna que pide el navegador)
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      
-      // ✅ Esta API permite vibración real y es la que no lanza el warning
-      await registration.showNotification('🎉 Test Mystery Hunter', {
-        body: '¡Notificación vía Service Worker activa!',
-        icon: '/assets/logoMistery.png',
-        badge: '/assets/locked.png',
-        vibrate: [200, 100, 200], // Patrón de vibración
-        tag: 'test-notification',
-        renotify: true
-      } as any);
-
-      alert('✅ Notificación enviada vía Service Worker');
-    } else {
-      // Fallback si no hay Service Worker (solo para navegadores muy viejos)
-      const notification = new Notification('🎉 Test (Simple)', {
-        body: 'Notificación simple sin Service Worker',
-        icon: '/assets/logoMistery.png'
-      } as any);
-      alert('✅ Notificación simple enviada');
-    }
-  } catch (e) {
-    console.error('❌ Error en testNotification:', e);
-    alert('❌ Error: ' + (e as Error).message);
-  }
-}
-
-// ✅ ESTADO DE PERMISOS MEJORADO
-async checkPermissions() {
-  const locationPerm = 'geolocation' in navigator ? '✅ Disponible' : '❌ No disponible';
-  const notificationPerm = Notification.permission;
-  const swSupported = 'serviceWorker' in navigator ? '✅ Soportado' : '❌ No soportado';
-  const vibrationTest = (navigator as any).vibrate ? '✅ Soportado' : '❌ No soportado';
-  
-  let swStatus = 'No detectado';
-  if ('serviceWorker' in navigator) {
-    const reg = await navigator.serviceWorker.getRegistration();
-    swStatus = reg ? `✅ Activo (${reg.scope})` : '⚠️ Registrado pero no activo';
-  }
-
-  alert(`
-📱 ESTADO DEL SISTEMA:
-
-🌍 Geolocalización: ${locationPerm}
-🔔 Notificaciones: ${notificationPerm}
-📳 Vibración: ${vibrationTest}
-⚙️ Service Worker: ${swSupported}
-🛠️ SW Status: ${swStatus}
-
-Precisión GPS: ${this.lastAccuracy ? Math.round(this.lastAccuracy) + 'm' : 'Sin datos'}
-  `.trim());
-}
 }

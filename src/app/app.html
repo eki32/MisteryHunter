@@ -182,21 +182,6 @@
   }
 </div>
 
-<!-- Test de Vibración -->
-<button (click)="testVibration()" style="position:fixed; top:100px; left:20px; z-index:99999; padding:10px; background:red; color:white;">
-  TEST VIBRAR
-</button>
-
-<!-- Test de Notificación -->
-<button (click)="testNotification()" style="position:fixed; top:150px; left:20px; z-index:99999; padding:10px; background:blue; color:white;">
-  TEST NOTIF
-</button>
-
-<!-- Test de Service Worker -->
-<button (click)="checkPermissions()" style="position:fixed; top:200px; left:20px; z-index:99999; padding:10px; background:green; color:white;">
-  TEST SW
-</button>
-
 @if (showSuccessModal()) {
   <div class="success-modal-overlay">
     <div class="success-modal" (click)="$event.stopPropagation()">

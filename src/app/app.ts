@@ -726,7 +726,7 @@ export class App {
       
       await registration.showNotification('📍 ¡Misterio Cerca!', {
         body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
-        icon: '/assets/logoMistery.png',
+        icon: '/public/logoMistery.png',
         badge: '/assets/locked.png',
         vibrate: [200, 100, 200, 100, 200],
         tag: `proximity-${mystery.id}`, // Evita duplicados
@@ -886,4 +886,20 @@ updateMysteriesDistance(userLocation: any) {
       }
     });
   }
+
+  async testNotification() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('🎉 Test Mystery Hunter', {
+        body: '¡Notificación con el detective activa!',
+        icon: 'assets/detective.png', // ✅ Tu icono aquí
+        vibrate: [200, 100, 200],
+        tag: 'test-notification'
+      } as any);
+    }
+  } catch (e) {
+    alert('❌ Error: ' + (e as Error).message);
+  }
+}
 }

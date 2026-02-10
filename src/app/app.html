@@ -182,6 +182,14 @@
   }
 </div>
 
+
+<!-- Test de Notificación -->
+<button (click)="testNotification()" style="position:fixed; top:150px; left:20px; z-index:99999; padding:10px; background:blue; color:white;">
+  TEST NOTIF
+</button>
+
+
+
 @if (showSuccessModal()) {
   <div class="success-modal-overlay">
     <div class="success-modal" (click)="$event.stopPropagation()">

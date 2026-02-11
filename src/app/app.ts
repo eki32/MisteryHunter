@@ -82,16 +82,29 @@ export class App {
 
   // Helper para vibración compatible con TypeScript
   private vibrar(pattern: number | number[]): void {
-    // Solo bloqueamos si el usuario está cerrando sesión
-    if (this.isLoggingOut) return;
-
+    // ✅ No vibrar si estamos haciendo logout o en pantallas de bienvenida/instrucciones
+    if (this.isLoggingOut || this.showWelcome() || this.showInstructions()) return;
+    
+    // ✅ No vibrar si no hay usuario logueado
+    if (!this.userId) return;
+    
     try {
+      // Verificar soporte de vibración
+      if (!('vibrate' in navigator)) {
+        console.warn('⚠️ API de vibración no disponible en este navegador/dispositivo');
+        return;
+      }
+
       const nav = navigator as any;
-      if (nav.vibrate) {
-        nav.vibrate(pattern);
+      const success = nav.vibrate(pattern);
+      
+      if (success) {
+        console.log('✅ Vibración ejecutada:', pattern);
+      } else {
+        console.warn('⚠️ Vibración falló (puede estar deshabilitada en ajustes del sistema)');
       }
     } catch (e) {
-      console.log('Vibración no soportada');
+      console.error('❌ Error al ejecutar vibración:', e);
     }
   }
 
@@ -108,12 +121,11 @@ export class App {
 
     // ✅ Registrar Service Worker para notificaciones en segundo plano
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .then((registration) => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
           console.log('✅ Service Worker registrado:', registration.scope);
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('❌ Error al registrar Service Worker:', error);
         });
     }
@@ -252,7 +264,7 @@ export class App {
         console.log('✅ Login exitoso:', trimmedName);
         this.showWelcome.set(false);
         this.showInstructions.set(true); // ✅ Mostrar instrucciones
-
+        
         // ✅ Solicitar permisos de notificación
         if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
@@ -339,24 +351,12 @@ export class App {
       return;
     }
 
-    // ✅ Función para limpiar acentos, mayúsculas y espacios
-    const normalizar = (texto: string) => {
-      return texto
-        .toLowerCase() // Todo a minúsculas
-        .trim() // Quitar espacios al inicio y final
-        .normalize('NFD') // Descomponer caracteres con acentos
-        .replace(/[\u0300-\u036f]/g, ''); // Eliminar los símbolos de acentos
-    };
-
-    const userClean = normalizar(respuestaUser);
-    const correctClean = normalizar(misterio.respuesta);
-
     console.log('🔍 Validando:');
     console.log('   Usuario escribió:', respuestaUser.toLowerCase());
     console.log('   Respuesta correcta:', misterio.respuesta.toLowerCase());
 
-    if (userClean === correctClean) {
-      console.log('✅ ¡Respuesta correcta! (Normalizada)');
+    if (respuestaUser.toLowerCase() === misterio.respuesta.toLowerCase()) {
+      console.log('✅ ¡Respuesta correcta!');
 
       this.map.closePopup();
       misterio.desbloqueado = true;
@@ -720,51 +720,56 @@ export class App {
 
   // ✅ NUEVO MÉTODO: Mostrar notificación del sistema tipo SMS/WhatsApp
   private async mostrarNotificacionProximidad(mystery: any, distance: number) {
-    console.log('🔔 Lanzando alerta de proximidad para:', mystery.titulo);
+    console.log('🔔 Intentando enviar notificación para:', mystery.titulo);
+    
+    // ✅ VIBRACIÓN DIRECTA (funciona incluso con pantalla apagada)
+    this.vibrar([200, 100, 200, 100, 200]); // Patrón más largo y notorio
 
-    // 1. Vibración inmediata (hilo principal)
-    this.vibrar([200, 100, 200, 100, 200]);
-
-    // 2. Notificación vía Service Worker (API Recomendada)
+    // ✅ NOTIFICACIÓN VÍA SERVICE WORKER (funciona en segundo plano)
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
       try {
         const registration = await navigator.serviceWorker.ready;
+        
+        // Enviar mensaje al Service Worker para que muestre la notificación
+        registration.active?.postMessage({
+          type: 'PROXIMITY_ALERT',
+          title: '📍 ¡Misterio Cerca!',
+          body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
+          mystery: { id: mystery.id, titulo: mystery.titulo }
+        });
 
-        await registration.showNotification('📍 ¡Misterio Cerca!', {
-          body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Ábrelo para ver el acertijo!`,
-          icon: '/logoMistery.png',
-          badge: '/assets/locked.png',
-          vibrate: [200, 100, 200, 100, 200],
-          tag: `proximity-${mystery.id}`, // Evita duplicados
-          renotify: true,
-          data: { mysteryId: mystery.id },
-        } as any);
-
-        console.log('✅ Notificación de proximidad enviada con éxito');
+        console.log('✅ Notificación enviada via Service Worker');
       } catch (error) {
-        console.error('❌ Error al usar Service Worker para proximidad:', error);
-        this.mostrarNotificacionNormal(mystery, distance); // Fallback
+        console.error('❌ Error al enviar notificación:', error);
+        // Fallback: notificación normal
+        this.mostrarNotificacionNormal(mystery, distance);
       }
-    } else {
+    } else if (Notification.permission === 'granted') {
+      // Fallback si no hay Service Worker
       this.mostrarNotificacionNormal(mystery, distance);
+    } else {
+      console.warn('⚠️ Permisos de notificación no concedidos:', Notification.permission);
+      // Intentar pedir permisos de nuevo
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        console.log('📱 Permiso de notificación:', permission);
+      }
     }
   }
 
   // Notificación normal (fallback)
-  // Notificación normal (fallback)
   private mostrarNotificacionNormal(mystery: any, distance: number) {
     try {
-      // Cast a 'any' para evitar que TS valide las propiedades contra la interfaz estándar
       const notification = new Notification('📍 ¡Misterio Cerca!', {
         body: `Estás a ${Math.round(distance)}m de "${mystery.titulo}". ¡Acércate más!`,
-        icon: '/public/logoMistery.png',
+        icon: '/assets/logoMistery.png',
         badge: '/assets/locked.png',
         tag: `proximity-${mystery.id}`,
         requireInteraction: false,
         silent: false,
-        vibrate: [200, 100, 200, 100, 200], // TypeScript ya no marcará rojo aquí
+        vibrate: [200, 100, 200, 100, 200],
         renotify: true,
-      } as any);
+      } as any); // ✅ Evita error de TypeScript con 'vibrate'
 
       setTimeout(() => notification.close(), 5000);
 
@@ -786,50 +791,90 @@ export class App {
   }
 
   updateMysteriesDistance(userLocation: any) {
-    if (!this.L || this.misteriosList.length === 0) return;
+    if (!this.L || this.misteriosList.length === 0) {
+      return;
+    }
 
-    const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 250;
+    const lockedIcon = this.L.icon({
+      iconUrl: 'assets/locked.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+    });
+
+    const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
 
     this.loadedMysteries.forEach((mysteryId) => {
       const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
+      
+      // ✅ SI EL MISTERIO ESTÁ RESUELTO, NO HACER NADA (sin vibración, sin notificación)
       if (!m || m.desbloqueado) return;
 
       const marker = this.markers.get(m.id);
       if (!marker) return;
 
-      const distance = userLocation.distanceTo(this.L.latLng(m.latitud, m.longitud));
+      const mysteryPos = this.L.latLng(m.latitud, m.longitud);
+      const distance = userLocation.distanceTo(mysteryPos);
+      const unlockRadius = m.radioDesbloqueo || 50; // ✅ Radio de Firebase
 
-      // --- LÓGICA DE RADIOS ---
-      const unlockRadius = m.radioDesbloqueo || 50; // El de Firebase
-      const proximityZone = unlockRadius + 100; // Avisamos 100m antes
+      marker.setIcon(lockedIcon);
 
-      // A. ZONA DE AVISO (Bolsillo)
-      if (distance < proximityZone && distance >= unlockRadius) {
-        if (!this.notifiedMysteries.has(m.id)) {
-          // ✅ Forzamos la notificación moderna que sí suena/vibra en bolsillo
+      // ===== FUERA DEL RADIO DE FIREBASE =====
+      if (distance >= unlockRadius) {
+        // Resetear si está muy lejos (para poder volver a notificar si vuelves)
+        if (distance > unlockRadius + 100) {
+          this.notifiedMysteries.delete(m.id);
+          this.vibratedMysteries.delete(m.id);
+        }
+        
+        marker.bindPopup(`
+          <div style="text-align: center; padding: 10px;">
+            <b>🔒 Bloqueado</b><br>
+            <span style="font-size: 12px;">Estás a ${Math.round(distance)}m</span><br>
+            <span style="font-size: 11px; color: #666;">Acércate a ${unlockRadius}m para desbloquear</span>
+          </div>`);
+      }
+      
+      // ===== DENTRO DEL RADIO DE FIREBASE ===== ✅ AQUÍ VIBRA Y NOTIFICA
+      else if (distance < unlockRadius && isLocationReliable) {
+        // ✅ Vibración + Notificación SOLO UNA VEZ al entrar en el radio
+        if (!this.vibratedMysteries.has(m.id)) {
+          console.log(`🎯 ¡ENTRASTE EN EL RADIO! ${m.titulo} - Distancia: ${Math.round(distance)}m de ${unlockRadius}m`);
+          
+          // Vibración fuerte
+          this.vibrar([300, 100, 300, 100, 300]);
+          
+          // Notificación
           this.mostrarNotificacionProximidad(m, distance);
+          
+          // Marcar como ya notificado
+          this.vibratedMysteries.add(m.id);
           this.notifiedMysteries.add(m.id);
         }
-      }
 
-      // B. ZONA DE DESBLOQUEO
-      else if (distance < unlockRadius && isLocationReliable) {
-        if (!this.vibratedMysteries.has(m.id)) {
-          // ✅ Vibración extra fuerte al llegar
-          this.vibrar([500, 100, 500]);
-          this.vibratedMysteries.add(m.id);
-        }
-
+        // Solo crear popup si NO está abierto (evita cerrar el teclado)
         if (!marker.isPopupOpen()) {
           const popupContent = `
-          <div style="text-align: center; min-width: 180px;">
-            <h3 style="color: #d4af37;">🔍 ${m.titulo}</h3>
-            <p><i>"${m.acertijo}"</i></p>
-            <input type="text" id="ans-${m.titulo}" placeholder="Tu respuesta..." style="width: 80%; margin-bottom: 8px;">
-            <button onclick="window.checkAnswerPopup('${m.titulo}')" style="background: #d4af37; border: none; padding: 8px; width: 100%; border-radius: 4px; font-weight: bold;">RESOLVER</button>
-          </div>`;
+            <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
+              <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
+              <p style="font-style: italic; margin: 10px 0; font-size: 14px; line-height: 1.4;">"${m.acertijo}"</p>
+              <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ Estás en el lugar correcto</p>
+              <input type="text" id="ans-${m.titulo}" placeholder="Respuesta..." 
+                     style="width: calc(100% - 16px); padding: 8px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 6px;">
+              <button onclick="window.checkAnswerPopup('${m.titulo}')" 
+                      style="padding: 10px 20px; background: #d4af37; color: #1a1a1a; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
+                Resolver
+              </button>
+            </div>`;
           marker.bindPopup(popupContent);
         }
+      } else if (distance < unlockRadius && !isLocationReliable) {
+        // GPS inestable - no se puede desbloquear
+        marker.bindPopup(`
+          <div style="text-align: center; padding: 10px;">
+            <b>⚠️ Señal GPS inestable</b><br>
+            <span style="font-size: 11px;">Muévete un poco para mejorar la precisión</span><br>
+            <span style="font-size: 10px; color: #666;">Precisión actual: ${Math.round(this.lastAccuracy)}m</span>
+          </div>`);
       }
     });
   }

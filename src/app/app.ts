@@ -801,12 +801,20 @@ export class App {
       iconAnchor: [16, 32],
     });
 
+    // ✅ Icono animado para cuando estás dentro del radio
+    const lockedBouncingIcon = this.L.divIcon({
+      className: '',
+      html: `<img src="assets/locked.png" class="marker-bounce" style="width:38px; height:38px;">`,
+      iconSize: [38, 38],
+      iconAnchor: [19, 38],
+    });
+
     const isLocationReliable = this.lastAccuracy > 0.1 && this.lastAccuracy < 100;
 
     this.loadedMysteries.forEach((mysteryId) => {
       const m = this.misteriosList.find((mystery) => mystery.id === mysteryId);
       
-      // ✅ SI EL MISTERIO ESTÁ RESUELTO, NO HACER NADA (sin vibración, sin notificación)
+      // ✅ SI EL MISTERIO ESTÁ RESUELTO, NO HACER NADA
       if (!m || m.desbloqueado) return;
 
       const marker = this.markers.get(m.id);
@@ -814,13 +822,14 @@ export class App {
 
       const mysteryPos = this.L.latLng(m.latitud, m.longitud);
       const distance = userLocation.distanceTo(mysteryPos);
-      const unlockRadius = m.radioDesbloqueo || 50; // ✅ Radio de Firebase
+      const unlockRadius = m.radioDesbloqueo || 50;
 
-      marker.setIcon(lockedIcon);
-
-      // ===== FUERA DEL RADIO DE FIREBASE =====
+      // ===== FUERA DEL RADIO =====
       if (distance >= unlockRadius) {
-        // Resetear si está muy lejos (para poder volver a notificar si vuelves)
+        // Icono normal sin animación
+        marker.setIcon(lockedIcon);
+
+        // Resetear si está muy lejos
         if (distance > unlockRadius + 100) {
           this.notifiedMysteries.delete(m.id);
           this.vibratedMysteries.delete(m.id);
@@ -834,30 +843,27 @@ export class App {
           </div>`);
       }
       
-      // ===== DENTRO DEL RADIO DE FIREBASE ===== ✅ AQUÍ VIBRA Y NOTIFICA
+      // ===== DENTRO DEL RADIO (GPS FIABLE) =====
       else if (distance < unlockRadius && isLocationReliable) {
-        // ✅ Vibración + Notificación SOLO UNA VEZ al entrar en el radio
+        // ✅ Icono animado con saltitos
+        marker.setIcon(lockedBouncingIcon);
+
+        // Vibración + Notificación SOLO UNA VEZ
         if (!this.vibratedMysteries.has(m.id)) {
-          console.log(`🎯 ¡ENTRASTE EN EL RADIO! ${m.titulo} - Distancia: ${Math.round(distance)}m de ${unlockRadius}m`);
-          
-          // Vibración fuerte
+          console.log(`🎯 ¡ENTRASTE EN EL RADIO! ${m.titulo} - ${Math.round(distance)}m de ${unlockRadius}m`);
           this.vibrar([300, 100, 300, 100, 300]);
-          
-          // Notificación
           this.mostrarNotificacionProximidad(m, distance);
-          
-          // Marcar como ya notificado
           this.vibratedMysteries.add(m.id);
           this.notifiedMysteries.add(m.id);
         }
 
-        // Solo crear popup si NO está abierto (evita cerrar el teclado)
+        // Solo crear popup si NO está abierto
         if (!marker.isPopupOpen()) {
           const popupContent = `
             <div class="popup-mystery" style="padding: 12px; text-align: center; min-width: 200px;">
               <h3 style="color: #d4af37; margin: 0 0 10px 0; font-size: 16px;">🔍 ${m.titulo}</h3>
               <p style="font-style: italic; margin: 10px 0; font-size: 14px; line-height: 1.4;">"${m.acertijo}"</p>
-              <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ Estás en el lugar correcto</p>
+              <p style="font-size: 11px; color: #4ade80; margin: 5px 0; font-weight: bold;">✓ ¡Pulsa el candado para resolver!</p>
               <input type="text" id="ans-${m.titulo}" placeholder="Respuesta..." 
                      style="width: calc(100% - 16px); padding: 8px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 6px;">
               <button onclick="window.checkAnswerPopup('${m.titulo}')" 

@@ -470,3 +470,35 @@ body {
     font-size: 24px !important;
   }
 }
+
+/* ============================================
+   AÑADIR A src/styles.scss (estilos GLOBALES)
+   Los marcadores de Leaflet están fuera del
+   componente Angular, por eso necesitan CSS global
+   ============================================ */
+
+/* ✅ CANDADO SALTANDO - Dentro del radio de desbloqueo */
+.marker-bounce {
+  animation: marker-bounce 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  transform-origin: center bottom;
+  display: block;
+  filter: drop-shadow(0 4px 8px rgba(212, 175, 55, 0.7));
+}
+
+@keyframes marker-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    transform: translateY(-10px) scale(1.08);
+  }
+  40% {
+    transform: translateY(0) scale(0.96);
+  }
+  60% {
+    transform: translateY(-5px) scale(1.03);
+  }
+  80% {
+    transform: translateY(0) scale(1);
+  }
+}

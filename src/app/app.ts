@@ -939,4 +939,18 @@ export class App {
       }
     });
   }
+
+  testNotificacionProximidad() {
+  // Coge el primer misterio disponible, o usa uno falso
+  const misterioTest = this.misteriosList[0] ?? {
+    id: 'test-123',
+    titulo: 'Misterio de Prueba',
+    radioDesbloqueo: 50
+  };
+
+  console.log('🧪 Ejecutando test de notificación...');
+  
+  // Simula que estás a 30m del misterio (dentro del radio)
+  this.mostrarNotificacionProximidad(misterioTest, 30);
+}
 }

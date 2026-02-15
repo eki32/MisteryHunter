@@ -2,43 +2,61 @@
 @if (showWelcome()) {
   <div class="welcome-overlay">
     <div class="welcome-card">
-      <img src="/assets/logoMistery.png" alt="Mystery Hunter Logo" class="mystery-logo">
-  
-      <h1 class="mystery-title">
-        Mystery <span class="gold">Hunter</span>
-      </h1>
+      <img src="/assets/logoMistery.png" alt="Mystery Hunter Logo" class="mystery-logo" />
 
-      <h3 style="color: #d4af37; margin: 20px 0 15px 0;">
+      <h1 class="mystery-title">Mystery <span class="gold">Hunter</span></h1>
+
+      <h3 style="color: #d4af37; margin: 20px 0 15px 0">
         @if (isLoginMode()) {
           Iniciar Sesión
         } @else {
           Crear Cuenta
         }
       </h3>
-      
-      <input 
-        type="text" 
+
+      <input
+        type="text"
         #playerNameInput
-        placeholder="Nombre de usuario..." 
+        placeholder="Nombre de usuario..."
         class="auth-input"
-        style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
-      
+        style="
+          width: 100%;
+          padding: 12px;
+          margin: 10px 0;
+          border: 2px solid #d4af37;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          font-size: 1rem;
+        "
+      />
+
       @if (nameError()) {
         <div class="error-message">{{ nameError() }}</div>
       }
 
-      <input 
-        type="password" 
+      <input
+        type="password"
         #passwordInput
-        placeholder="Contraseña..." 
+        placeholder="Contraseña..."
         class="auth-input"
         (keyup.enter)="handleAuth(playerNameInput.value, passwordInput.value)"
-        style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #d4af37; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; font-size: 1rem;">
-      
+        style="
+          width: 100%;
+          padding: 12px;
+          margin: 10px 0;
+          border: 2px solid #d4af37;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          font-size: 1rem;
+        "
+      />
+
       @if (passwordError()) {
         <div class="error-message">{{ passwordError() }}</div>
       }
-      
+
       <button class="start-button" (click)="handleAuth(playerNameInput.value, passwordInput.value)">
         {{ isLoginMode() ? 'Entrar' : 'Registrarse' }}
       </button>
@@ -58,25 +76,24 @@
 @if (showInstructions()) {
   <div class="welcome-overlay">
     <div class="welcome-card">
-      <img src="/assets/logoMistery.png" alt="Mystery Hunter Logo" class="mystery-logo">
-  
-      <h1 class="mystery-title">
-        Mystery <span class="gold">Hunter</span>
-      </h1>
+      <img src="/assets/logoMistery.png" alt="Mystery Hunter Logo" class="mystery-logo" />
+
+      <h1 class="mystery-title">Mystery <span class="gold">Hunter</span></h1>
 
       <div class="description-box">
-        <p>Bienvenido al desafío definitivo. Explora tu entorno, resuelve enigmas históricos y compite por ser el mejor investigador.</p>
-        
+        <p>
+          Bienvenido al desafío definitivo. Explora tu entorno, resuelve enigmas históricos y
+          compite por ser el mejor investigador.
+        </p>
+
         <ul>
           <li>Encuentra puntos de interés en el mapa.</li>
           <li>Acércate físicamente para desbloquear el misterio.</li>
           <li>Resuelve el acertijo y gana puntos para el ranking.</li>
         </ul>
       </div>
-      
-      <button class="start-button" (click)="closeInstructions()">
-        ¡Comenzar!
-      </button>
+
+      <button class="start-button" (click)="closeInstructions()">¡Comenzar!</button>
     </div>
   </div>
 }
@@ -84,17 +101,13 @@
 <div id="map" style="height: 100vh; width: 100%"></div>
 
 @if (!showWelcome() && !showInstructions()) {
-  <button class="locate-button" (click)="goToCurrentLocation()">
-    🎯
-  </button>
+  <button class="locate-button" (click)="goToCurrentLocation()">🎯</button>
 }
 
 <div class="score-container">🏆 Puntos: {{ totalPoints() }}</div>
 
 @if (!showWelcome() && !showInstructions()) {
-  <button class="logout-button" (click)="logout()">
-    🚪 Salir
-  </button>
+  <button class="logout-button" (click)="logout()">🚪 Salir</button>
 }
 
 <div class="ranking-container" [class.expanded]="showRanking()">
@@ -146,14 +159,6 @@
             </div>
           }
         </div>
-
-        @if (!showWelcome() && !showInstructions()) {
-  <button 
-    (click)="testNotificacionProximidad()" 
-    style="position:fixed; bottom:80px; left:20px; z-index:99999; padding:12px 16px; background:#7c3aed; color:white; border:none; border-radius:8px; font-weight:bold; font-size:13px;">
-    🧪 Test Notificación
-  </button>
-}
 
         @if (topPlayers().length > 6) {
           <button class="show-more-btn" (click)="toggleShowAllPlayers()">
@@ -232,5 +237,26 @@
       </div>
     </div>
   </div>
+}
+
+@if (!showWelcome() && !showInstructions()) {
+  <button
+    (click)="testNotificacionProximidad()"
+    style="
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      z-index: 99999;
+      padding: 12px 16px;
+      background: #7c3aed;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 13px;
+    "
+  >
+    🧪 Test Notificación
+  </button>
 }
 <router-outlet></router-outlet>
